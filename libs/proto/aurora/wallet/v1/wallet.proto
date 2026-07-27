@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package aurora.wallet.v1;
+
+option go_package = "github.com/dazn/aurora/services/wallet-svc/gen/aurora/wallet/v1;walletv1";
+
+// WalletService manages virtual-currency (OSS, non-real-money) balances via a
+// double-entry ledger with idempotent Credit/Debit (M3, see ADR-0004).
+// Amounts are integer minor units (never floats). Real money + Pragmatic: M9.
+service WalletService {
+  rpc Credit(CreditRequest) returns (TransactionResponse);
+  rpc Debit(DebitRequest) returns (TransactionResponse);
+  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message CreditRequest {
+  string user_id = 1;
+  int64 amount_minor = 2;       // > 0
+  string idempotency_key = 3;   // required; replays return the same result
+  string reason = 4;            // optional, audit
+}
+
+message DebitRequest {
+  string user_id = 1;
+  int64 amount_minor = 2;       // > 0
+  string idempotency_key = 3;   // required
+  string reason = 4;
+}
+
+message TransactionResponse {
+  string transaction_id = 1;
+  string user_id = 2;
+  string type = 3;                    // "CREDIT" | "DEBIT"
+  int64 amount_minor = 4;
+  string currency = 5;
+  int64 resulting_balance_minor = 6;
+  bool replayed = 7;                  // true if this was an idempotent replay
+}
+
+message GetBalanceRequest {
+  string user_id = 1;
+}
+
+message GetBalanceResponse {
+  string user_id = 1;
+  int64 balance_minor = 2;
+  string currency = 3;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  string version = 2;
+  map<string, string> details = 3;
+}

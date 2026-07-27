@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package aurora.room.v1;
+
+option go_package = "github.com/dazn/aurora/services/room-svc/gen/aurora/room/v1;roomv1";
+
+// RoomService manages chat rooms, membership, and messages (M4, see ADR-0005).
+// Room/member metadata lives in Postgres; messages live in ScyllaDB; ephemeral
+// presence/typing/message signals are published to NATS.
+//
+// Auth: every RPC except HealthCheck requires `Authorization: Bearer <access>`
+// (HS256 JWT issued by identity-svc, M2). The caller's user_id is the token sub.
+service RoomService {
+  rpc CreateRoom(CreateRoomRequest) returns (Room);
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);   // rooms the caller is in
+  rpc JoinRoom(JoinRoomRequest) returns (Membership);
+  rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  rpc SendMessage(SendMessageRequest) returns (Message);
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
+  rpc Typing(TypingRequest) returns (TypingResponse);            // ephemeral NATS signal
+  // ProposeAiPool (M7, ADR-0007): a member asks the AI to propose a group pool.
+  // room-svc orchestrates ai-agent-svc + bet-svc, writes an AI chat message, and
+  // emits an ai_proposal NATS signal. The caller becomes the pool creator.
+  rpc ProposeAiPool(ProposeAiPoolRequest) returns (ProposeAiPoolResponse);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message Room {
+  string id = 1;
+  string name = 2;
+  string owner_user_id = 3;
+  int64 created_at_unix_ms = 4;
+}
+
+message Membership {
+  string room_id = 1;
+  string user_id = 2;
+  string role = 3;          // OWNER | MEMBER
+  int64 joined_at_unix_ms = 4;
+}
+
+message Message {
+  string id = 1;            // timeuuid
+  string room_id = 2;
+  string user_id = 3;
+  string body = 4;
+  int64 created_at_unix_ms = 5;
+}
+
+message CreateRoomRequest { string name = 1; }
+
+message ListRoomsRequest {}
+message ListRoomsResponse { repeated Room rooms = 1; }
+
+message JoinRoomRequest { string room_id = 1; }
+
+message LeaveRoomRequest { string room_id = 1; }
+message LeaveRoomResponse { bool ok = 1; }
+
+message ListMembersRequest { string room_id = 1; }
+message ListMembersResponse { repeated Membership members = 1; }
+
+message SendMessageRequest {
+  string room_id = 1;
+  string body = 2;
+}
+
+message ListMessagesRequest {
+  string room_id = 1;
+  int32 limit = 2;          // default 50, max 200
+}
+message ListMessagesResponse { repeated Message messages = 1; }
+
+message TypingRequest { string room_id = 1; }
+message TypingResponse { bool ok = 1; }
+
+// ProposeAiPool orchestrates the M7 "AI in room" flow (ADR-0007).
+message ProposeAiPoolRequest {
+  string room_id = 1;
+  string match_id = 2;      // optional match context passed to ai-agent-svc
+}
+
+// AiRecommendation mirrors ai-agent-svc's Recommendation (M5).
+message AiRecommendation {
+  string market_id = 1;
+  string selection = 2;
+  double suggested_odds = 3;
+  double ai_confidence = 4;
+  double expected_value = 5;
+  string reasoning = 6;
+  repeated string data_sources = 7;   // tool-call audit trail
+}
+
+// AiPoolOption / AiPool mirror the subset of bet-svc's Pool that room-svc echoes.
+message AiPoolOption {
+  string id = 1;
+  string label = 2;
+  int64 odds_x100 = 3;
+}
+message AiPool {
+  string id = 1;
+  string room_id = 2;
+  string question = 3;
+  string status = 4;
+  string created_by = 5;
+  int32 rake_bps = 6;
+  repeated AiPoolOption options = 7;
+  int64 created_at_unix_ms = 8;
+}
+
+message ProposeAiPoolResponse {
+  AiRecommendation recommendation = 1;
+  AiPool pool = 2;
+  Message message = 3;      // the AI-authored chat line (user_id = "aurora-ai")
+}
+
+message HealthCheckRequest {}
+message HealthCheckResponse {
+  string status = 1;
+  string version = 2;
+  map<string, string> details = 3;
+}

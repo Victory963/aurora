@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package aurora.identity.v1;
+
+option go_package = "github.com/dazn/aurora/services/identity-svc/gen/aurora/identity/v1;identityv1";
+
+// IdentityService manages users, credentials, devices, and sessions.
+//   M0: CreateUser / GetUser (end-to-end smoke).
+//   M1: CreateUser publishes user.lifecycle.created.v1.
+//   M2: password login, JWT access + rotating refresh tokens, device tracking,
+//       account deletion (publishes user.lifecycle.deleted.v1).
+//
+// Auth convention (M2): GetMe / ListDevices / DeleteUser require an
+// `Authorization: Bearer <access_token>` header (not a request field).
+service IdentityService {
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // M2
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (TokenBundle);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc GetMe(GetMeRequest) returns (GetUserResponse);          // requires Bearer
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse); // requires Bearer
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);    // requires Bearer
+}
+
+message User {
+  string id = 1;              // UUID v4
+  string email = 2;
+  string display_name = 3;
+  string kyc_country = 4;     // ISO 3166-1 alpha-2
+  int64 created_at_unix_ms = 5;
+}
+
+message CreateUserRequest {
+  string email = 1;
+  string display_name = 2;
+  string kyc_country = 3;
+  string password = 4;        // M2: optional; if set, enables Login
+}
+
+message CreateUserResponse {
+  User user = 1;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;           // "ok" | "degraded" | "down"
+  string version = 2;
+  map<string, string> details = 3;
+}
+
+// ---------- M2: auth / sessions / devices ----------
+
+message DeviceInfo {           // client-supplied login context
+  string platform = 1;         // "ios" | "android" | "web" | ...
+  string user_agent = 2;
+}
+
+message Device {
+  string id = 1;
+  string platform = 2;
+  string user_agent = 3;
+  int64 created_at_unix_ms = 4;
+  int64 last_seen_unix_ms = 5;
+}
+
+message TokenBundle {
+  string access_token = 1;     // HS256 JWT
+  string refresh_token = 2;    // opaque; returned once, rotated on refresh
+  string token_type = 3;       // "Bearer"
+  int64 expires_in = 4;        // access-token TTL seconds
+  string session_id = 5;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  DeviceInfo device = 3;
+}
+
+message LoginResponse {
+  // Mirrors TokenBundle fields inline, plus the user.
+  string access_token = 1;
+  string refresh_token = 2;
+  string token_type = 3;
+  int64 expires_in = 4;
+  string session_id = 5;
+  User user = 6;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message LogoutRequest {
+  string refresh_token = 1;
+}
+
+message LogoutResponse {
+  bool ok = 1;
+}
+
+message GetMeRequest {}        // auth via Bearer header
+
+message ListDevicesRequest {}  // auth via Bearer header
+
+message ListDevicesResponse {
+  repeated Device devices = 1;
+}
+
+message DeleteUserRequest {}   // auth via Bearer header; deletes the token's subject
+
+message DeleteUserResponse {
+  bool deleted = 1;
+}

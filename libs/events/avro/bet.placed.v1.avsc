@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "BetPlaced",
+  "namespace": "aurora.bet.events.v1",
+  "doc": "Forward contract — NOT produced in M1. Emitted by bet-svc (M6) and consumed by wallet-svc (M3) for settlement projection and by audit (M12). Bus: Kafka topic 'aurora.bet.lifecycle.v1'.",
+  "fields": [
+    { "name": "event_id", "type": "string" },
+    { "name": "event_type", "type": "string", "doc": "Always 'bet.placed.v1'" },
+    { "name": "occurred_at_unix_ms", "type": "long" },
+    { "name": "bet_id", "type": "string" },
+    { "name": "user_id", "type": "string" },
+    { "name": "market_id", "type": "string" },
+    { "name": "selection", "type": "string" },
+    { "name": "stake_minor", "type": "long", "doc": "Stake in minor virtual-currency units (no floats for money)" },
+    { "name": "odds", "type": "double" },
+    { "name": "room_id", "type": "string", "default": "", "doc": "Set only for ROOM-mode bets" }
+  ]
+}

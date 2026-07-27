@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package aurora.ai.v1;
+
+option go_package = "github.com/dazn/aurora/services/ai-agent-svc/gen/aurora/ai/v1;aiv1";
+
+// AIAgentService produces recommendations.
+// M0: returns hard-coded recommendations for a given user (real LLM in M5).
+// M5+: full LangGraph state machine, tool calls, streaming.
+service AIAgentService {
+  rpc Recommend(RecommendRequest) returns (RecommendResponse);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_SOLO = 1;
+  MODE_ROOM = 2;
+  MODE_KOL_PERSONA = 3;
+}
+
+message RecommendRequest {
+  string user_id = 1;
+  Mode mode = 2;
+  string match_id = 3;
+  string room_id = 4;        // optional, only when mode = MODE_ROOM
+}
+
+message Recommendation {
+  string market_id = 1;
+  string selection = 2;
+  double suggested_odds = 3;
+  double ai_confidence = 4;  // 0.0 - 1.0
+  double expected_value = 5; // can be negative
+  string reasoning = 6;
+  repeated string data_sources = 7;  // for audit
+}
+
+message RecommendResponse {
+  repeated Recommendation recommendations = 1;
+  string correlation_id = 2;
+  int32 latency_ms = 3;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  string version = 2;
+  map<string, string> details = 3;
+}

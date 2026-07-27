@@ -1,0 +1,415 @@
+# =============================================================================
+# Aurora M0 — docker-compose
+#
+# Spins up:
+#   - postgres        (port 5432)
+#   - identity-svc    (port 8081)
+#   - ai-agent-svc    (port 8082)
+#
+# Future milestones append:
+#   M1: kafka + zookeeper + schema-registry + nats
+#   M3: wallet-svc + redis
+#   M4: room-svc + scylladb
+#   M5: ai-agent-svc swaps to LangGraph (real LLM endpoint env)
+#   M8: neo4j
+#   M10: cloudflare workers (out-of-compose, deployed separately)
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aurora-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aurora
+      POSTGRES_PASSWORD: aurora_dev_password
+      POSTGRES_DB: aurora_identity
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/sql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aurora -d aurora_identity"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  identity-svc:
+    build:
+      context: .
+      dockerfile: services/identity-svc/Dockerfile
+    container_name: aurora-identity-svc
+    restart: unless-stopped
+    environment:
+      AURORA_IDENTITY_HTTP_ADDR: ":8081"
+      AURORA_IDENTITY_DB_HOST: postgres
+      AURORA_IDENTITY_DB_PORT: "5432"
+      AURORA_IDENTITY_DB_NAME: aurora_identity
+      AURORA_IDENTITY_DB_USER: aurora
+      AURORA_IDENTITY_DB_PASS: aurora_dev_password
+      # M1 Event Mesh
+      AURORA_IDENTITY_KAFKA_BROKERS: "kafka:9092"
+      AURORA_IDENTITY_KAFKA_TOPIC: "aurora.identity.user-lifecycle.v1"
+      # M2 auth (dev secret; Vault in M9)
+      AURORA_IDENTITY_JWT_SECRET: "aurora_dev_jwt_secret_change_me"
+      AURORA_IDENTITY_ACCESS_TTL: "15m"
+      AURORA_IDENTITY_REFRESH_TTL: "720h"
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8081/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 8s
+
+  ai-agent-svc:
+    build:
+      context: .
+      dockerfile: services/ai-agent-svc/Dockerfile
+    container_name: aurora-ai-agent-svc
+    restart: unless-stopped
+    environment:
+      AURORA_AI_IDENTITY_URL: "http://identity-svc:8081"
+      # M5: real LLM (empty key => deterministic fallback path, still 200)
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      AURORA_AI_MODEL: "${AURORA_AI_MODEL:-claude-opus-4-8}"
+      AURORA_AI_LLM_TIMEOUT_S: "20"
+      AURORA_AI_REDIS_URL: "redis://redis:6379/0"
+    ports:
+      - "8082:8082"
+    depends_on:
+      identity-svc:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8082/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 8s
+
+  # M3: wallet-svc (OSS virtual currency). DB aurora_wallet is pre-created by
+  # infra/sql/init. Consumes user.lifecycle.created.v1 to open wallets; emits
+  # wallet.transaction.completed.v1 via transactional outbox.
+  wallet-svc:
+    build:
+      context: .
+      dockerfile: services/wallet-svc/Dockerfile
+    container_name: aurora-wallet-svc
+    restart: unless-stopped
+    environment:
+      AURORA_WALLET_HTTP_ADDR: ":8083"
+      AURORA_WALLET_DB_HOST: postgres
+      AURORA_WALLET_DB_PORT: "5432"
+      AURORA_WALLET_DB_NAME: aurora_wallet
+      AURORA_WALLET_DB_USER: aurora
+      AURORA_WALLET_DB_PASS: aurora_dev_password
+      AURORA_WALLET_CURRENCY: "AUC"
+      AURORA_WALLET_KAFKA_BROKERS: "kafka:9092"
+      AURORA_WALLET_OUTBOX_TOPIC: "aurora.wallet.transaction.v1"
+      AURORA_WALLET_USER_EVENTS_TOPIC: "aurora.identity.user-lifecycle.v1"
+      AURORA_WALLET_CONSUMER_GROUP: "wallet-svc"
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8083/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 8s
+
+  # M4: room-svc (rooms/members in Postgres aurora_room, chat in ScyllaDB,
+  # ephemeral presence/typing/message signals to NATS — first NATS producer).
+  room-svc:
+    build:
+      context: .
+      dockerfile: services/room-svc/Dockerfile
+    container_name: aurora-room-svc
+    restart: unless-stopped
+    environment:
+      AURORA_ROOM_HTTP_ADDR: ":8084"
+      AURORA_ROOM_DB_HOST: postgres
+      AURORA_ROOM_DB_PORT: "5432"
+      AURORA_ROOM_DB_NAME: aurora_room
+      AURORA_ROOM_DB_USER: aurora
+      AURORA_ROOM_DB_PASS: aurora_dev_password
+      AURORA_ROOM_SCYLLA_HOSTS: "scylla"
+      AURORA_ROOM_SCYLLA_PORT: "9042"
+      AURORA_ROOM_SCYLLA_KEYSPACE: "aurora_room"
+      AURORA_ROOM_NATS_URL: "nats://nats:4222"
+      AURORA_ROOM_JWT_SECRET: "aurora_dev_jwt_secret_change_me"
+      # M7 AI-in-room (ADR-0007). Runtime-only deps via resilient clients, NOT in
+      # depends_on: bet-svc depends_on room-svc, so a reverse edge would cycle.
+      AURORA_ROOM_AI_URL: "http://ai-agent-svc:8082"
+      AURORA_ROOM_BET_URL: "http://bet-svc:8086"
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      scylla:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8084/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
+  # M6: bet-svc (closed pools + parimutuel settlement; money via wallet-svc,
+  # membership via room-svc, DB aurora_bet pre-created by infra/sql/init).
+  bet-svc:
+    build:
+      context: .
+      dockerfile: services/bet-svc/Dockerfile
+    container_name: aurora-bet-svc
+    restart: unless-stopped
+    environment:
+      AURORA_BET_HTTP_ADDR: ":8086"
+      AURORA_BET_DB_HOST: postgres
+      AURORA_BET_DB_PORT: "5432"
+      AURORA_BET_DB_NAME: aurora_bet
+      AURORA_BET_DB_USER: aurora
+      AURORA_BET_DB_PASS: aurora_dev_password
+      AURORA_BET_WALLET_URL: "http://wallet-svc:8083"
+      AURORA_BET_ROOM_URL: "http://room-svc:8084"
+      AURORA_BET_KAFKA_BROKERS: "kafka:9092"
+      AURORA_BET_KAFKA_TOPIC: "aurora.bet.lifecycle.v1"
+      AURORA_BET_JWT_SECRET: "aurora_dev_jwt_secret_change_me"
+      AURORA_BET_RAKE_BPS: "500"
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      wallet-svc:
+        condition: service_healthy
+      room-svc:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8086/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 8s
+
+  # M8: graph-svc (Identity Graph read model — Kafka events projected into
+  # Neo4j; co-occurrence / Sybil / KOL-influence queries. ADR-0008).
+  graph-svc:
+    build:
+      context: .
+      dockerfile: services/graph-svc/Dockerfile
+    container_name: aurora-graph-svc
+    restart: unless-stopped
+    environment:
+      AURORA_GRAPH_HTTP_ADDR: ":8087"
+      AURORA_GRAPH_NEO4J_URI: "bolt://neo4j:7687"
+      AURORA_GRAPH_NEO4J_USER: "neo4j"
+      AURORA_GRAPH_NEO4J_PASS: "aurora_dev_password"
+      AURORA_GRAPH_KAFKA_BROKERS: "kafka:9092"
+      AURORA_GRAPH_JWT_SECRET: "aurora_dev_jwt_secret_change_me"
+    ports:
+      - "8087:8087"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8087/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
+  # M8: Neo4j (single node, dev; heap capped for the small VM — ADR-0008 §1).
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: aurora-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: "neo4j/aurora_dev_password"
+      NEO4J_server_memory_heap_initial__size: "128m"
+      NEO4J_server_memory_heap_max__size: "256m"
+      NEO4J_server_memory_pagecache_size: "128m"
+    ports:
+      - "7474:7474"   # HTTP browser UI
+      - "7687:7687"   # bolt
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  # Demo console (dev-only): serves demo/index.html and reverse-proxies all
+  # service APIs on ONE origin so the browser needs no CORS. Real edge = M10.
+  demo-ui:
+    image: nginx:1.27-alpine
+    container_name: aurora-demo-ui
+    restart: unless-stopped
+    volumes:
+      - ./demo/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./demo/index.html:/usr/share/nginx/html/index.html:ro
+    ports:
+      - "8090:8090"
+    depends_on:
+      identity-svc:
+        condition: service_healthy
+      wallet-svc:
+        condition: service_healthy
+      room-svc:
+        condition: service_healthy
+      bet-svc:
+        condition: service_healthy
+      ai-agent-svc:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:8090/ || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # M1 Aurora Event Mesh: Kafka (durable log) + Schema Registry + NATS (ephemeral)
+  # ---------------------------------------------------------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: aurora-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: "2181"
+      ZOOKEEPER_TICK_TIME: "2000"
+      ZOOKEEPER_4LW_COMMANDS_WHITELIST: "ruok,srvr,conf,stat"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/2181' 2>/dev/null || exit 1"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 10s
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: aurora-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: "1"
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+      # In-network clients use kafka:9092; host tools use localhost:29092.
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "29092:29092"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 8s
+      retries: 12
+      start_period: 20s
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.1
+    container_name: aurora-schema-registry
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: "schema-registry"
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "PLAINTEXT://kafka:9092"
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8085"
+    ports:
+      - "8085:8085"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8085/subjects >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: aurora-nats
+    restart: unless-stopped
+    # -js: JetStream (durable streams for later milestones); -m: HTTP monitoring.
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8222/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  # M5: Redis — LangGraph checkpointer for ai-agent-svc.
+  redis:
+    image: redis:7-alpine
+    container_name: aurora-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+
+  # M4: ScyllaDB (Cassandra-compatible) for chat messages. Dev-light flags;
+  # single node, replication_factor=1. Slow to start (start_period generous).
+  scylla:
+    image: scylladb/scylla:5.4
+    container_name: aurora-scylla
+    restart: unless-stopped
+    command: --smp 1 --memory 750M --overprovisioned 1 --developer-mode 1
+    ports:
+      - "9042:9042"
+    volumes:
+      - scylla_data:/var/lib/scylla
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe cluster' >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+volumes:
+  postgres_data:
+    name: aurora_postgres_m0
+  scylla_data:
+    name: aurora_scylla_m4
+  neo4j_data:
+    name: aurora_neo4j_m8

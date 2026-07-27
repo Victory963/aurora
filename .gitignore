@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Go build artifacts
+/out/
+*.test
+
+# NOTE: go.sum is committed on purpose (reproducible builds) — do NOT ignore it.
+
+# Local env / secrets
+.env
+*.local
+
+# Node (root package.json is a leftover experiment; demo console has no deps)
+node_modules/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db

@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package aurora.bet.v1;
+
+option go_package = "github.com/dazn/aurora/services/bet-svc/gen/aurora/bet/v1;betv1";
+
+// BetService runs room-scoped closed pools (parimutuel; ADR-0006, M6).
+// Money moves via wallet-svc HTTP with idempotency keys; amounts are integer
+// minor units of the OSS virtual currency (AUC). Real money: M9.
+//
+// Auth: every RPC except HealthCheck requires `Authorization: Bearer <access>`
+// (identity-svc HS256 JWT). When a pool has a room_id, CreatePool/PlaceBet also
+// verify room membership by calling room-svc with the caller's token.
+service BetService {
+  rpc CreatePool(CreatePoolRequest) returns (Pool);
+  rpc GetPool(GetPoolRequest) returns (Pool);
+  rpc ListRoomPools(ListRoomPoolsRequest) returns (ListRoomPoolsResponse);
+  rpc PlaceBet(PlaceBetRequest) returns (Bet);
+  rpc SettlePool(SettlePoolRequest) returns (Pool);   // creator only
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message PoolOption {
+  string id = 1;
+  string label = 2;
+  int64 odds_x100 = 3;          // indicative display odds only (settlement is parimutuel)
+  int64 stake_minor = 4;        // total staked on this option
+  int32 bettors = 5;
+}
+
+message Pool {
+  string id = 1;
+  string room_id = 2;           // "" = not room-scoped
+  string question = 3;
+  string status = 4;            // OPEN | SETTLING | SETTLED
+  string created_by = 5;
+  int32 rake_bps = 6;
+  string winning_option_id = 7; // set once settled
+  repeated PoolOption options = 8;
+  int64 total_stake_minor = 9;
+  int64 created_at_unix_ms = 10;
+  int64 settled_at_unix_ms = 11;
+}
+
+message Bet {
+  string id = 1;
+  string pool_id = 2;
+  string option_id = 3;
+  string user_id = 4;
+  int64 stake_minor = 5;
+  string status = 6;            // PLACED | WON | LOST | REFUNDED
+  int64 payout_minor = 7;
+  bool replayed = 8;            // idempotent replay of an earlier PlaceBet
+  int64 created_at_unix_ms = 9;
+}
+
+message CreatePoolOption {
+  string label = 1;
+  int64 odds_x100 = 2;
+}
+
+message CreatePoolRequest {
+  string room_id = 1;           // optional; non-empty => membership enforced
+  string question = 2;
+  repeated CreatePoolOption options = 3;  // exactly 2 in M6
+}
+
+message GetPoolRequest { string pool_id = 1; }
+
+message ListRoomPoolsRequest { string room_id = 1; }
+message ListRoomPoolsResponse { repeated Pool pools = 1; }
+
+message PlaceBetRequest {
+  string pool_id = 1;
+  string option_id = 2;
+  int64 stake_minor = 3;        // > 0
+  string idempotency_key = 4;   // required; also forwarded to wallet Debit
+}
+
+message SettlePoolRequest {
+  string pool_id = 1;
+  string winning_option_id = 2;
+}
+
+message HealthCheckRequest {}
+message HealthCheckResponse {
+  string status = 1;
+  string version = 2;
+  map<string, string> details = 3;
+}

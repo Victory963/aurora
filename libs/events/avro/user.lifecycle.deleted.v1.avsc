@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "UserLifecycleDeleted",
+  "namespace": "aurora.identity.events.v1",
+  "doc": "Forward contract — NOT produced in M1. identity-svc will emit this when account deletion lands (M2). Same topic 'aurora.identity.user-lifecycle.v1', distinguished by event_type.",
+  "fields": [
+    { "name": "event_id", "type": "string", "doc": "UUID v4 of this event" },
+    { "name": "event_type", "type": "string", "doc": "Always 'user.lifecycle.deleted.v1'" },
+    { "name": "occurred_at_unix_ms", "type": "long" },
+    { "name": "user_id", "type": "string" },
+    { "name": "reason", "type": "string", "default": "", "doc": "Optional deletion reason (GDPR / self-service / admin)" }
+  ]
+}

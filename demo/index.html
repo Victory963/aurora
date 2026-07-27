@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AURORA Live Console — 真后端在线演示</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #131824; --panel2: #1a2130; --line: #232b3d;
+    --text: #e8ecf4; --dim: #8b95a9; --accent: #f7ff1a; --accent-dim: #b8bf00;
+    --ok: #3ddc84; --warn: #ffb020; --err: #ff5d5d; --ai: #7aa2ff;
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, "Segoe UI", "Noto Sans CJK SC", sans-serif; min-height: 100vh; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+  header h1 { font-size: 18px; letter-spacing: 2px; }
+  header h1 span { color: var(--accent); }
+  .tagline { color: var(--dim); font-size: 12px; }
+  #health { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+  .pill { font-size: 11px; font-family: var(--mono); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel2); color: var(--dim); }
+  .pill.ok { border-color: var(--ok); color: var(--ok); }
+  .pill.err { border-color: var(--err); color: var(--err); }
+  main { display: grid; grid-template-columns: 300px 1fr 380px; gap: 14px; padding: 14px 20px; max-width: 1600px; margin: 0 auto; }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .badge { font-size: 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; color: var(--accent); letter-spacing: 0; }
+  button { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 7px 12px; font-size: 13px; cursor: pointer; transition: border-color .15s, transform .05s; }
+  button:hover { border-color: var(--accent-dim); }
+  button:active { transform: scale(.97); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: #111; border: none; font-weight: 700; }
+  button.ai { background: linear-gradient(120deg, #33406b, #22335c); border-color: var(--ai); color: #cfe0ff; font-weight: 600; }
+  input, select { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 7px; padding: 7px 10px; font-size: 13px; width: 100%; }
+  .row { display: flex; gap: 8px; margin: 6px 0; align-items: center; }
+  .row > * { flex-shrink: 0; }
+  .row input, .row select { flex: 1; min-width: 0; }
+  .user { border: 1px solid var(--line); border-radius: 9px; padding: 10px; margin-bottom: 10px; background: var(--panel2); }
+  .user.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .user .uname { font-weight: 700; }
+  .user .uid { font-family: var(--mono); font-size: 10px; color: var(--dim); word-break: break-all; }
+  .balance { font-family: var(--mono); font-size: 20px; color: var(--accent); margin: 4px 0; }
+  .balance small { color: var(--dim); font-size: 11px; }
+  #chat { height: 320px; overflow-y: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: 86%; padding: 7px 11px; border-radius: 10px; background: var(--panel2); font-size: 13px; }
+  .msg .who { font-size: 10px; color: var(--dim); margin-bottom: 2px; font-family: var(--mono); }
+  .msg.me { align-self: flex-end; background: #2a3324; }
+  .msg.ai { border: 1px solid var(--ai); background: #1a2340; align-self: stretch; max-width: 100%; }
+  .msg.ai .who { color: var(--ai); }
+  .pool { border: 1px solid var(--line); border-radius: 9px; padding: 11px; margin-bottom: 10px; background: var(--panel2); }
+  .pool .q { font-weight: 700; margin-bottom: 6px; }
+  .pool .meta { font-size: 11px; color: var(--dim); font-family: var(--mono); margin-bottom: 8px; }
+  .pool .status-OPEN { color: var(--ok); } .pool .status-SETTLED { color: var(--warn); } .pool .status-SETTLING { color: var(--err); }
+  .opt { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; margin: 5px 0; }
+  .opt.winner { border-color: var(--ok); }
+  .opt .lbl { font-weight: 700; width: 46px; }
+  .opt .odds { font-family: var(--mono); color: var(--ai); width: 56px; }
+  .opt .stk { font-family: var(--mono); font-size: 11px; color: var(--dim); flex: 1; }
+  .opt button { padding: 4px 9px; font-size: 12px; }
+  #log { height: 200px; overflow-y: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-family: var(--mono); font-size: 11px; }
+  #log .l { padding: 2px 0; border-bottom: 1px dashed #1c2334; word-break: break-all; }
+  #log .ok { color: var(--ok); } #log .err { color: var(--err); } #log .info { color: var(--dim); }
+  .airec { border: 1px solid var(--ai); border-radius: 9px; padding: 11px; background: #141c33; margin-bottom: 10px; font-size: 13px; }
+  .airec .t { color: var(--ai); font-weight: 700; margin-bottom: 6px; }
+  .airec .src { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-top: 6px; word-break: break-all; }
+  .hint { font-size: 12px; color: var(--dim); margin-top: 6px; }
+  .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid #cfe0ff44; border-top-color: #cfe0ff; border-radius: 50%; animation: r .7s linear infinite; vertical-align: -2px; }
+  @keyframes r { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>AUR<span>O</span>RA</h1>
+  <div class="tagline">Live Console — 每个按钮都调用真实后端(identity·wallet·room·ai·bet)</div>
+  <div id="health"></div>
+</header>
+
+<main>
+  <!-- ============ LEFT: users & wallets ============ -->
+  <section>
+    <div class="card">
+      <h2>用户 &amp; 钱包 <span class="badge">M2 identity · M3 wallet</span></h2>
+      <div id="users"></div>
+      <button class="primary" id="btnBoot" style="width:100%">一键注册并登录 太郎 &amp; 花子</button>
+      <div class="hint">注册 → 登录拿 JWT → Kafka 事件自动开钱包 → 各充 5000 AUC</div>
+    </div>
+    <div class="card">
+      <h2>事件日志</h2>
+      <div id="log"></div>
+    </div>
+  </section>
+
+  <!-- ============ MIDDLE: room / chat / AI ============ -->
+  <section>
+    <div class="card">
+      <h2>房间 &amp; 聊天 <span class="badge">M4 room · ScyllaDB · NATS</span></h2>
+      <div class="row">
+        <input id="roomName" value="埼玉スタンド" placeholder="房间名">
+        <button id="btnRoom">建房 (太郎)</button>
+        <button id="btnJoin" disabled>花子加入</button>
+      </div>
+      <div class="hint" id="roomInfo">尚未建房</div>
+      <div id="chat" style="margin-top:8px"></div>
+      <div class="row">
+        <select id="speaker" style="max-width:90px"><option value="A">太郎</option><option value="B">花子</option></select>
+        <input id="chatInput" placeholder="发消息…(存 ScyllaDB,信号走 NATS)">
+        <button id="btnSend" disabled>发送</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>AI in Room <span class="badge">M5 LangGraph+Claude · M7 编排</span></h2>
+      <div class="row">
+        <input id="matchId" value="j1.urawa-vs-fctokyo" placeholder="match_id">
+        <button class="ai" id="btnAI" disabled>🤖 让 AI 提议一个 Pool</button>
+      </div>
+      <div class="hint">room-svc 编排:ai-agent 推荐 → bet-svc 建 Pool → Scylla 写 AI 消息 → NATS ai_proposal</div>
+      <div id="aiRec"></div>
+    </div>
+  </section>
+
+  <!-- ============ RIGHT: pools & betting ============ -->
+  <section>
+    <div class="card">
+      <h2>群体 Pool <span class="badge">M6 parimutuel · 幂等钱流</span></h2>
+      <div class="hint">下注人:<b id="actorName">太郎</b>(切换用中间的说话人选择)· 结算权归 Pool 创建者</div>
+      <div id="pools" style="margin-top:8px"><div class="hint">先建房,再让 AI 提议 Pool</div></div>
+    </div>
+    <div class="card">
+      <h2>Identity Graph <span class="badge">M8 Neo4j 投影</span></h2>
+      <div class="row">
+        <button id="btnGraph" disabled>查询 太郎 的图</button>
+      </div>
+      <div id="graphOut" class="hint">Kafka 事件异步投影,下注后几秒可见</div>
+    </div>
+    <div class="card">
+      <h2>NATS 实时信号</h2>
+      <div id="nats" class="hint">-</div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- state ----
+const S = {
+  users: { A: { name: "太郎", email: null, id: null, token: null, bal: null },
+           B: { name: "花子", email: null, id: null, token: null, bal: null } },
+  room: null, pools: [], msgSeen: new Set(), booted: false,
+};
+const $ = id => document.getElementById(id);
+const short = s => (s || "").slice(0, 8);
+const now = () => new Date().toTimeString().slice(0, 8);
+
+function log(cls, text) {
+  const el = document.createElement("div");
+  el.className = "l " + cls;
+  el.textContent = `[${now()}] ${text}`;
+  $("log").prepend(el);
+  while ($("log").children.length > 120) $("log").lastChild.remove();
+}
+
+// ------------------------------------------------------------- transport ----
+async function rpc(svc, pkg, method, body, userKey) {
+  const headers = { "Content-Type": "application/json" };
+  if (userKey && S.users[userKey].token) headers["Authorization"] = "Bearer " + S.users[userKey].token;
+  const res = await fetch(`/api/${svc}/${pkg}/${method}`, { method: "POST", headers, body: JSON.stringify(body) });
+  let data = {};
+  try { data = await res.json(); } catch (_) {}
+  if (!res.ok) {
+    const msg = `${method} → ${res.status} ${data.code || ""} ${data.message || ""}`;
+    log("err", msg);
+    throw Object.assign(new Error(msg), { status: res.status, code: data.code });
+  }
+  log("ok", `${method} → 200`);
+  return data;
+}
+const identity = (m, b, u) => rpc("identity", "aurora.identity.v1.IdentityService", m, b, u);
+const wallet   = (m, b, u) => rpc("wallet",   "aurora.wallet.v1.WalletService",     m, b, u);
+const room     = (m, b, u) => rpc("room",     "aurora.room.v1.RoomService",         m, b, u);
+const bet      = (m, b, u) => rpc("bet",      "aurora.bet.v1.BetService",           m, b, u);
+const graphq   = (m, b, u) => rpc("graph",    "aurora.graph.v1.GraphService",       m, b, u);
+
+// ---------------------------------------------------------------- health ----
+const HEALTH = [["identity","identity"],["ai","ai-agent"],["wallet","wallet"],["room","room"],["bet","bet"],["nats","nats"]];
+async function refreshHealth() {
+  const parts = await Promise.all(HEALTH.map(async ([path, label]) => {
+    try {
+      const r = await fetch(`/api/${path}/${path === "nats" ? "varz" : "healthz"}`);
+      return `<span class="pill ${r.ok ? "ok" : "err"}">${label}</span>`;
+    } catch (_) { return `<span class="pill err">${label}</span>`; }
+  }));
+  $("health").innerHTML = parts.join("");
+}
+
+async function refreshNats() {
+  try {
+    const v = await (await fetch("/api/nats/varz")).json();
+    $("nats").innerHTML = `连接 <b>${v.connections}</b> · in_msgs <b>${v.in_msgs}</b> · out_msgs <b>${v.out_msgs}</b><br>` +
+      `<span style="font-family:var(--mono);font-size:10px">presence / typing / message / ai_proposal 信号都会推高计数</span>`;
+  } catch (_) { $("nats").textContent = "NATS 监控不可达"; }
+}
+
+// ----------------------------------------------------------------- users ----
+function renderUsers() {
+  $("users").innerHTML = ["A", "B"].map(k => {
+    const u = S.users[k];
+    return `<div class="user" id="user${k}">
+      <div class="uname">${u.name} ${u.id ? "" : "<span style='color:var(--dim);font-weight:400'>(未注册)</span>"}</div>
+      ${u.id ? `<div class="uid">${u.id}</div>
+      <div class="balance">${u.bal === null ? "…" : u.bal.toLocaleString()} <small>AUC</small></div>
+      <div class="row"><button onclick="topup('${k}')">+5000 AUC</button></div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+async function bootUsers() {
+  $("btnBoot").disabled = true;
+  try {
+    const ts = Date.now();
+    for (const k of ["A", "B"]) {
+      const u = S.users[k];
+      if (u.id) continue;
+      u.email = `demo-${k.toLowerCase()}-${ts}@aurora.test`;
+      const created = await identity("CreateUser", { email: u.email, display_name: u.name, kyc_country: "JP", password: "demo-pass-123" });
+      u.id = created.user.id;
+      const login = await identity("Login", { email: u.email, password: "demo-pass-123", device: { platform: "web" } });
+      u.token = login.access_token;
+    }
+    renderUsers();
+    // wallets open asynchronously via the Kafka consumer — poll then fund
+    for (const k of ["A", "B"]) {
+      for (let i = 0; i < 30; i++) {
+        try { await wallet("GetBalance", { user_id: S.users[k].id }); break; }
+        catch (_) { await new Promise(r => setTimeout(r, 1000)); }
+      }
+      await wallet("Credit", { user_id: S.users[k].id, amount_minor: 5000, idempotency_key: `demo-fund-${S.users[k].id}` });
+    }
+    await refreshBalances();
+    S.booted = true;
+    $("btnBoot").textContent = "✓ 太郎 & 花子 已就绪";
+    log("info", "两名用户注册完成,钱包由 user.created 事件自动开启,各充 5000 AUC");
+  } catch (e) { $("btnBoot").disabled = false; }
+}
+
+let _balSeq = 0;
+async function refreshBalances() {
+  const seq = ++_balSeq;
+  for (const k of ["A", "B"]) {
+    const u = S.users[k];
+    if (!u.id) continue;
+    try {
+      const bal = (await wallet("GetBalance", { user_id: u.id })).balance_minor;
+      if (seq !== _balSeq) return; // drop stale response
+      u.bal = bal;
+    } catch (_) {}
+  }
+  renderUsers();
+}
+window.topup = async k => {
+  await wallet("Credit", { user_id: S.users[k].id, amount_minor: 5000, idempotency_key: "topup-" + crypto.randomUUID() });
+  await refreshBalances();
+};
+
+// ------------------------------------------------------------------ room ----
+async function createRoom() {
+  if (!S.users.A.token) { log("err", "先注册用户"); return; }
+  const r = await room("CreateRoom", { name: $("roomName").value || "aurora room" }, "A");
+  S.room = r;
+  $("roomInfo").innerHTML = `房间 <b>${escapeHtml(r.name)}</b> <span style="font-family:var(--mono);font-size:10px">${r.id}</span> · 房主 太郎`;
+  $("btnJoin").disabled = false; $("btnSend").disabled = false; $("btnAI").disabled = false; $("btnGraph").disabled = false;
+  log("info", `房间已建:${r.name}`);
+}
+async function joinRoom() {
+  await room("JoinRoom", { room_id: S.room.id }, "B");
+  $("btnJoin").textContent = "✓ 花子已加入";
+  $("btnJoin").disabled = true;
+}
+async function sendMsg() {
+  const who = $("speaker").value, body = $("chatInput").value.trim();
+  if (!body || !S.room) return;
+  await room("SendMessage", { room_id: S.room.id, body }, who); // throws on failure — input preserved
+  $("chatInput").value = "";
+  await pollChat();
+}
+let _chatSeq = 0;
+async function pollChat() {
+  if (!S.room || !S.users.A.token) return;
+  const seq = ++_chatSeq;
+  try {
+    const res = await room("ListMessages", { room_id: S.room.id, limit: 50 }, "A");
+    if (seq !== _chatSeq) return; // a newer poll already rendered — drop stale response
+    const msgs = (res.messages || []).slice().sort((a, b) => a.created_at_unix_ms - b.created_at_unix_ms);
+    const box = $("chat");
+    const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+    box.innerHTML = msgs.map(m => {
+      const isAI = m.user_id === "aurora-ai";
+      const who = isAI ? "🤖 aurora-ai" : (m.user_id === S.users.A.id ? "太郎" : m.user_id === S.users.B.id ? "花子" : short(m.user_id));
+      const me = m.user_id === S.users[$("speaker").value].id;
+      return `<div class="msg ${isAI ? "ai" : me ? "me" : ""}"><div class="who">${who}</div>${escapeHtml(m.body)}</div>`;
+    }).join("");
+    if (stick) box.scrollTop = box.scrollHeight;
+  } catch (_) {}
+}
+const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ------------------------------------------------------------------- AI -----
+async function proposeAI() {
+  const btn = $("btnAI");
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> AI 思考中…(RG→工具→推理→质量门)';
+  try {
+    const res = await room("ProposeAiPool", { room_id: S.room.id, match_id: $("matchId").value || "demo-match" }, "A");
+    const rec = res.recommendation, engine = (rec.data_sources || []).find(s => s.startsWith("llm:") || s === "fallback:template") || "?";
+    $("aiRec").innerHTML = `<div class="airec">
+      <div class="t">🤖 AI 推荐:${escapeHtml(rec.selection)} · 置信度 ${(rec.ai_confidence * 100).toFixed(0)}% · EV ${rec.expected_value > 0 ? "+" : ""}${rec.expected_value}</div>
+      <div>${escapeHtml(rec.reasoning)}</div>
+      <div class="src">引擎 ${engine}<br>审计链:${(rec.data_sources || []).join(" → ")}</div>
+    </div>`;
+    log("info", `AI 提议落地:pool=${short(res.pool.id)} 引擎=${engine}`);
+    await Promise.all([pollChat(), pollPools(), refreshNats()]);
+  } catch (_) {}
+  btn.disabled = false; btn.textContent = "🤖 让 AI 提议一个 Pool";
+}
+
+// ----------------------------------------------------------------- pools ----
+let _poolSeq = 0;
+async function pollPools() {
+  if (!S.room || !S.users.A.token) return;
+  const seq = ++_poolSeq;
+  try {
+    const res = await bet("ListRoomPools", { room_id: S.room.id }, "A");
+    if (seq !== _poolSeq) return; // drop stale response
+    S.pools = (res.pools || []).sort((a, b) => b.created_at_unix_ms - a.created_at_unix_ms);
+    renderPools();
+  } catch (_) {}
+}
+function renderPools() {
+  if (!S.pools.length) { $("pools").innerHTML = '<div class="hint">还没有 Pool — 让 AI 提议一个</div>'; return; }
+  $("pools").innerHTML = S.pools.map(p => {
+    const total = p.total_stake_minor || 0;
+    return `<div class="pool">
+      <div class="q">${escapeHtml(p.question)}</div>
+      <div class="meta"><span class="status-${p.status}">${p.status}</span> · 总注 ${total.toLocaleString()} AUC · rake ${(p.rake_bps / 100).toFixed(1)}% · ${short(p.id)}</div>
+      ${p.options.map(o => `
+        <div class="opt ${p.winning_option_id === o.id ? "winner" : ""}">
+          <span class="lbl">${escapeHtml(o.label)}</span>
+          <span class="odds">${(o.odds_x100 / 100).toFixed(2)}x</span>
+          <span class="stk">${(o.stake_minor || 0).toLocaleString()} AUC · ${o.bettors} 人${p.winning_option_id === o.id ? " · 🏆" : ""}</span>
+          ${p.status === "OPEN" ? `<button onclick="placeBet('${p.id}','${o.id}',100)">押100</button>
+          <button onclick="placeBet('${p.id}','${o.id}',500)">押500</button>` : ""}
+        </div>`).join("")}
+      ${p.status === "OPEN" ? `<div class="row" style="margin-top:6px">${
+        p.options.map(o => `<button onclick="settle('${p.id}','${o.id}')">结算:${escapeHtml(o.label)} 胜</button>`).join("")
+      }</div><div class="hint">结算仅 Pool 创建者可执行(其他人会得到 403)</div>` : ""}
+      ${p.status === "SETTLING" ? `<div class="row" style="margin-top:6px">
+        <button onclick="settle('${p.id}','${p.winning_option_id}')">恢复结算(上次被中断)</button>
+      </div>` : ""}
+    </div>`;
+  }).join("");
+}
+window.placeBet = async (poolID, optID, stake) => {
+  const who = $("speaker").value;
+  try {
+    await bet("PlaceBet", { pool_id: poolID, option_id: optID, stake_minor: stake, idempotency_key: "ui-" + crypto.randomUUID() }, who);
+    log("info", `${S.users[who].name} 押了 ${stake} AUC(wallet 幂等扣款)`);
+  } catch (_) {}
+  await Promise.all([pollPools(), refreshBalances()]);
+};
+window.settle = async (poolID, optID) => {
+  const who = $("speaker").value;
+  try {
+    await bet("SettlePool", { pool_id: poolID, winning_option_id: optID }, who);
+    log("info", `parimutuel 结算完成:输家池扣 rake 后按注额分给赢家`);
+  } catch (_) {}
+  await Promise.all([pollPools(), refreshBalances()]);
+};
+
+// ----------------------------------------------------------------- graph ----
+async function queryGraph() {
+  const uid = S.users.A.id;
+  if (!uid) return;
+  $("graphOut").innerHTML = '<span class="spin"></span> 查询 Neo4j…';
+  try {
+    const [ug, co, inf] = await Promise.all([
+      graphq("GetUserGraph", { user_id: uid }, "A").catch(() => null),
+      graphq("CoBettors", { user_id: uid }, "A"),
+      graphq("Influence", { user_id: uid }, "A"),
+    ]);
+    const name = id => id === S.users.A.id ? "太郎" : id === S.users.B.id ? "花子" : short(id);
+    $("graphOut").innerHTML =
+      (ug ? `太郎:${ug.bets.length} 笔注 · KYC ${ug.kyc_country}<br>` : "太郎还没被投影(先下注)<br>") +
+      `共现:${(co.co_bettors || []).map(c => `${name(c.user_id)}(${c.shared_pools} 池)`).join("、") || "无"}<br>` +
+      `KOL 信号:${inf.followers} 人跟注 ${inf.follow_events} 次` +
+      (inf.follow_events ? ` · 平均延迟 ${(inf.avg_lag_ms / 1000).toFixed(1)}s` : "") +
+      `<br><span style="font-family:var(--mono);font-size:10px">图中只有 user_id,无 PII(ADR-0008)</span>`;
+  } catch (_) { $("graphOut").textContent = "查询失败(graph-svc 未就绪?)"; }
+}
+
+// ---------------------------------------------------------------- wiring ----
+$("btnBoot").onclick = bootUsers;
+$("btnGraph").onclick = queryGraph;
+$("btnRoom").onclick = createRoom;
+$("btnJoin").onclick = joinRoom;
+$("btnSend").onclick = sendMsg;
+$("btnAI").onclick = proposeAI;
+$("chatInput").addEventListener("keydown", e => { if (e.key === "Enter") sendMsg(); });
+$("speaker").addEventListener("change", () => { $("actorName").textContent = S.users[$("speaker").value].name; pollChat(); });
+
+renderUsers();
+refreshHealth();
+refreshNats();
+setInterval(refreshHealth, 10000);
+setInterval(refreshNats, 5000);
+setInterval(pollChat, 2500);
+setInterval(pollPools, 3500);
+setInterval(refreshBalances, 6000);
+</script>
+</body>
+</html>

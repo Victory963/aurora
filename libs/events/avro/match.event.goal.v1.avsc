@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "MatchEventGoal",
+  "namespace": "aurora.sports.events.v1",
+  "doc": "Forward contract — NOT produced in M1. A live-match goal signal that ai-agent-svc (M5) consumes to trigger in-the-moment recommendations. Bus: Kafka topic 'aurora.sports.match-event.v1'.",
+  "fields": [
+    { "name": "event_id", "type": "string" },
+    { "name": "event_type", "type": "string", "doc": "Always 'match.event.goal.v1'" },
+    { "name": "occurred_at_unix_ms", "type": "long" },
+    { "name": "match_id", "type": "string", "doc": "e.g. 'j1.urawa-vs-fctokyo'" },
+    { "name": "minute", "type": "int", "doc": "Match minute of the goal" },
+    { "name": "scoring_side", "type": "string", "doc": "HOME | AWAY" },
+    { "name": "score_home", "type": "int" },
+    { "name": "score_away", "type": "int" },
+    { "name": "scorer_player_id", "type": "string", "default": "" }
+  ]
+}

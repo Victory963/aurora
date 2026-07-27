@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "WalletTransactionCompleted",
+  "namespace": "aurora.wallet.events.v1",
+  "doc": "Emitted by wallet-svc (via transactional outbox) after a credit/debit commits. Bus: Kafka topic 'aurora.wallet.transaction.v1'. M3 wire format is JSON conforming to this record (see ADR-0004).",
+  "fields": [
+    { "name": "event_id", "type": "string", "doc": "UUID v4 of this event" },
+    { "name": "event_type", "type": "string", "doc": "Always 'wallet.transaction.completed.v1'" },
+    { "name": "occurred_at_unix_ms", "type": "long" },
+    { "name": "transaction_id", "type": "string", "doc": "UUID v4 of the ledger transaction (consumer idempotency key)" },
+    { "name": "idempotency_key", "type": "string" },
+    { "name": "user_id", "type": "string" },
+    { "name": "tx_type", "type": "string", "doc": "CREDIT | DEBIT" },
+    { "name": "amount_minor", "type": "long" },
+    { "name": "currency", "type": "string" },
+    { "name": "resulting_balance_minor", "type": "long" }
+  ]
+}

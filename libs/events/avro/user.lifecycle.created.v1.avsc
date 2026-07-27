@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "UserLifecycleCreated",
+  "namespace": "aurora.identity.events.v1",
+  "doc": "Emitted by identity-svc after a user is created. Bus: Kafka topic 'aurora.identity.user-lifecycle.v1'. M1 wire format is JSON conforming to this record (see ADR-0002).",
+  "fields": [
+    { "name": "event_id", "type": "string", "doc": "UUID v4 of this event (idempotency key)" },
+    { "name": "event_type", "type": "string", "doc": "Always 'user.lifecycle.created.v1'" },
+    { "name": "occurred_at_unix_ms", "type": "long", "doc": "When the event was produced" },
+    { "name": "user_id", "type": "string", "doc": "UUID v4 of the created user" },
+    { "name": "email", "type": "string" },
+    { "name": "display_name", "type": "string" },
+    { "name": "kyc_country", "type": "string", "doc": "ISO 3166-1 alpha-2" },
+    { "name": "created_at_unix_ms", "type": "long", "doc": "User row creation timestamp" }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "BetPoolSettled",
+  "namespace": "aurora.bet.events.v1",
+  "doc": "Emitted by bet-svc when a closed pool settles (M6, ADR-0006). Bus: Kafka topic 'aurora.bet.lifecycle.v1'. Direct publish (no outbox; wallet.transaction events remain the money source of truth).",
+  "fields": [
+    { "name": "event_id", "type": "string" },
+    { "name": "event_type", "type": "string", "doc": "Always 'bet.pool.settled.v1'" },
+    { "name": "occurred_at_unix_ms", "type": "long" },
+    { "name": "pool_id", "type": "string" },
+    { "name": "room_id", "type": "string", "default": "" },
+    { "name": "winning_option_id", "type": "string", "doc": "Empty when the pool was refunded (no winners)" },
+    { "name": "total_stake_minor", "type": "long" },
+    { "name": "rake_minor", "type": "long" },
+    { "name": "winners", "type": "int" },
+    { "name": "refunded", "type": "boolean", "default": false }
+  ]
+}

@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aurora-ai-agent-svc"
+# PEP 440: local-version segment keeps the milestone marker while staying valid
+# for setuptools metadata generation (`pip install .`).
+version = "0.2.0+m5"
+description = "Aurora AI Agent Service — M5: LangGraph + Claude API with deterministic fallback"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.115.0",
+    "uvicorn[standard]==0.30.6",
+    "pydantic==2.9.2",
+    "httpx==0.27.2",
+    # M5 (ranges, not pins: these release fast; the runtime guards every import
+    # and degrades to the template path if an API drifts — see aurora_ai/pipeline.py)
+    "anthropic>=0.40",
+    "langgraph>=0.2.60",
+    "redis>=5.0",
+    "langgraph-checkpoint-redis>=0.0.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.3",
+    "pytest-asyncio==0.24.0",
+    "ruff==0.6.9",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aurora_ai*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

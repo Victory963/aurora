@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "AuditAction",
+  "namespace": "aurora.compliance.events.v1",
+  "doc": "Forward contract — NOT produced in M1. A uniform audit trail record every service emits for compliance (M12). Bus: Kafka topic 'aurora.compliance.audit.v1'.",
+  "fields": [
+    { "name": "event_id", "type": "string" },
+    { "name": "event_type", "type": "string", "doc": "Always 'audit.action.v1'" },
+    { "name": "occurred_at_unix_ms", "type": "long" },
+    { "name": "actor_type", "type": "string", "doc": "USER | SERVICE | AI | ADMIN" },
+    { "name": "actor_id", "type": "string" },
+    { "name": "action", "type": "string", "doc": "e.g. 'identity.user.create', 'bet.place'" },
+    { "name": "resource", "type": "string", "doc": "Resource the action targeted" },
+    { "name": "outcome", "type": "string", "doc": "ALLOW | DENY | ERROR" },
+    { "name": "detail", "type": "string", "default": "", "doc": "Free-form JSON string, optional" }
+  ]
+}

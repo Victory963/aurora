@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package aurora.graph.v1;
+
+// GraphService is the M8 Identity Graph read model (ADR-0008).
+// A pure projection over Kafka events (identity + bet lifecycles) into Neo4j.
+// PII boundary: the graph stores user ids only — never email / display_name.
+// All query RPCs require Authorization: Bearer <access JWT>.
+service GraphService {
+  // CoBettors returns users who bet on the same pools as the given user,
+  // ordered by the number of shared pools (co-occurrence).
+  rpc CoBettors(CoBettorsRequest) returns (CoBettorsResponse);
+
+  // SybilCandidates returns accounts that repeatedly bet the SAME selection
+  // on the same pools as the user — a cheap multi-account heuristic
+  // (real risk models are M12 scope).
+  rpc SybilCandidates(SybilCandidatesRequest) returns (SybilCandidatesResponse);
+
+  // Influence measures how often others bet the same selection AFTER the
+  // user did (KOL signal): distinct followers, follow events, average lag.
+  rpc Influence(InfluenceRequest) returns (InfluenceResponse);
+
+  // GetUserGraph returns the user's node plus their bets — id-only, no PII.
+  rpc GetUserGraph(GetUserGraphRequest) returns (GetUserGraphResponse);
+
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message CoBettorsRequest {
+  string user_id = 1;
+  int32 limit = 2; // default 10, max 50
+}
+
+message CoBettor {
+  string user_id = 1;
+  int32 shared_pools = 2;
+  int64 last_shared_at_unix_ms = 3;
+}
+
+message CoBettorsResponse {
+  repeated CoBettor co_bettors = 1;
+}
+
+message SybilCandidatesRequest {
+  string user_id = 1;
+  int32 min_shared = 2; // default 2
+}
+
+message SybilCandidate {
+  string user_id = 1;
+  int32 shared_same_selection_pools = 2;
+  int64 created_gap_ms = 3; // |account creation time delta|
+}
+
+message SybilCandidatesResponse {
+  repeated SybilCandidate candidates = 1;
+}
+
+message InfluenceRequest {
+  string user_id = 1;
+}
+
+message InfluenceResponse {
+  int32 followers = 1;      // distinct users who followed at least once
+  int32 follow_events = 2;  // total same-selection-after-me bets
+  int64 avg_lag_ms = 3;     // average follow delay
+  int32 pools_led = 4;      // distinct pools where at least one follow happened
+}
+
+message GetUserGraphRequest {
+  string user_id = 1;
+}
+
+message GraphBet {
+  string pool_id = 1;
+  string room_id = 2;
+  string selection = 3;
+  int64 stake_minor = 4;
+  int64 at_unix_ms = 5;
+}
+
+message GetUserGraphResponse {
+  string user_id = 1;
+  string kyc_country = 2;
+  int64 created_at_unix_ms = 3;
+  repeated GraphBet bets = 4;
+  int32 co_bettor_count = 5;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  string version = 2;
+  map<string, string> details = 3;
+}
