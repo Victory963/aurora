@@ -1,0 +1,1951 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Aurora — Live System Demo</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-0: #0a0e1a;
+  --bg-1: #131829;
+  --bg-2: #1a2038;
+  --bg-3: #232a44;
+  --border: #2a3252;
+  --text-1: #e8e8ec;
+  --text-2: #a0a4b8;
+  --text-3: #6c7290;
+  --primary: #7F77DD;
+  --primary-dim: #534AB7;
+  --primary-bg: rgba(127, 119, 221, 0.12);
+  --teal: #5DCAA5;
+  --teal-dim: #1D9E75;
+  --teal-bg: rgba(93, 202, 165, 0.12);
+  --amber: #EF9F27;
+  --amber-bg: rgba(239, 159, 39, 0.12);
+  --coral: #F0997B;
+  --coral-bg: rgba(240, 153, 123, 0.12);
+  --pink: #ED93B1;
+  --red: #E24B4A;
+  --green-pitch: #2d5a3d;
+  --green-pitch-line: #3a7050;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  background: linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
+  color: var(--text-1);
+  min-height: 100vh;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* ========== HEADER ========== */
+header {
+  background: rgba(10, 14, 26, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--teal) 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--bg-0);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.brand-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.brand-subtitle {
+  font-size: 10px;
+  color: var(--text-2);
+  letter-spacing: 0.5px;
+}
+
+.match-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(226, 75, 74, 0.15);
+  border: 1px solid rgba(226, 75, 74, 0.4);
+  color: var(--red);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--red);
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.kpi-bar {
+  display: flex;
+  gap: 18px;
+  font-size: 11px;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  line-height: 1.2;
+}
+
+.kpi-label {
+  color: var(--text-3);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.kpi-value {
+  color: var(--text-1);
+  font-weight: 600;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-value.up { color: var(--teal); }
+.kpi-value.warn { color: var(--amber); }
+
+/* ========== MAIN GRID ========== */
+main {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  padding: 14px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+@media (max-width: 1200px) {
+  main { grid-template-columns: 1fr 1fr; }
+  #col-system { grid-column: 1 / -1; }
+}
+
+@media (max-width: 768px) {
+  main { grid-template-columns: 1fr; }
+  #col-system { grid-column: auto; }
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panel {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-2);
+}
+
+.panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-tag {
+  background: var(--primary-bg);
+  color: var(--primary);
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.panel-tag.teal { background: var(--teal-bg); color: var(--teal); }
+.panel-tag.amber { background: var(--amber-bg); color: var(--amber); }
+
+.panel-body {
+  padding: 14px;
+}
+
+.panel-body.no-pad { padding: 0; }
+
+/* ========== PITCH (canvas) ========== */
+.pitch-container {
+  position: relative;
+  background: linear-gradient(135deg, #1d3f2a 0%, #2d5a3d 50%, #1d3f2a 100%);
+  aspect-ratio: 16/9;
+}
+
+#pitch {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.score-overlay {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 14, 26, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-weight: 600;
+}
+
+.team-mini {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.team-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.team-dot.red { background: #E24B4A; }
+.team-dot.blue { background: #378ADD; }
+
+.score {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+}
+
+.match-time {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(10, 14, 26, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border);
+}
+
+.match-stats-bar {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(10, 14, 26, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+}
+
+/* ========== STATS PANEL ========== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.stat-card {
+  background: var(--bg-2);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 9px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+}
+
+.stat-trend {
+  font-size: 9px;
+  margin-top: 2px;
+}
+
+.stat-trend.up { color: var(--teal); }
+.stat-trend.down { color: var(--red); }
+
+/* ========== ROOM ========== */
+.room-members {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+  overflow-x: auto;
+}
+
+.member {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 44px;
+  cursor: default;
+}
+
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+}
+
+.member.host .member-avatar { border-color: var(--amber); }
+.member.ai .member-avatar {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--teal) 100%);
+  color: var(--bg-0);
+  border-color: var(--teal);
+  font-size: 14px;
+}
+
+.member.speaking .member-avatar {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-bg);
+  animation: speakingPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes speakingPulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--teal-bg); }
+  50% { box-shadow: 0 0 0 6px rgba(93, 202, 165, 0.05); }
+}
+
+.member-name {
+  font-size: 9px;
+  color: var(--text-2);
+  margin-top: 3px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 50px;
+}
+
+.chat-area {
+  height: 280px;
+  overflow-y: auto;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-behavior: smooth;
+}
+
+.chat-area::-webkit-scrollbar { width: 4px; }
+.chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.msg {
+  display: flex;
+  gap: 8px;
+  animation: msgIn 0.3s ease-out;
+  align-items: flex-start;
+}
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.msg-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.msg-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+
+.msg-name { color: var(--text-1); font-weight: 500; }
+.msg-name.ai { color: var(--teal); }
+.msg-time { color: var(--text-3); }
+.msg-text { color: var(--text-1); font-size: 12px; }
+
+.msg.ai .msg-avatar {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--teal) 100%);
+  color: var(--bg-0);
+}
+
+.ai-tag {
+  background: var(--teal-bg);
+  color: var(--teal);
+  font-size: 8px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* AI proposal card (in chat) */
+.ai-proposal {
+  background: linear-gradient(135deg, rgba(127, 119, 221, 0.08) 0%, rgba(93, 202, 165, 0.08) 100%);
+  border: 1px solid var(--primary-dim);
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.ai-proposal-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--teal);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-proposal-detail {
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.ai-proposal-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--text-2);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.ai-proposal-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  color: var(--text-1);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.btn.teal {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: var(--bg-0);
+}
+
+/* ========== GROUP POOL ========== */
+.group-pool {
+  border-top: 1px solid var(--border);
+  padding: 12px 14px;
+  background: var(--bg-2);
+  min-height: 96px;
+}
+
+.pool-empty {
+  color: var(--text-3);
+  font-size: 11px;
+  text-align: center;
+  padding: 16px 0;
+  font-style: italic;
+}
+
+.pool-active {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pool-question {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pool-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.pool-option {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.pool-option-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.pool-option-name { font-weight: 500; }
+.pool-option-stake { color: var(--text-2); font-size: 10px; }
+
+.pool-bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.pool-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.6s ease-out;
+}
+
+.pool-option.win .pool-bar-fill { background: var(--teal); }
+.pool-option.lose .pool-bar-fill { background: var(--red); }
+
+.pool-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-2);
+  margin-top: 4px;
+}
+
+/* ========== EVENT STREAM ========== */
+.event-stream {
+  height: 240px;
+  overflow-y: auto;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+  font-size: 11px;
+}
+
+.event-stream::-webkit-scrollbar { width: 4px; }
+.event-stream::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.event-row {
+  padding: 5px 14px;
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid var(--bg-2);
+  animation: eventIn 0.4s ease-out;
+}
+
+@keyframes eventIn {
+  from { opacity: 0; transform: translateX(-10px); background: var(--primary-bg); }
+  to { opacity: 1; transform: translateX(0); background: transparent; }
+}
+
+.event-time {
+  color: var(--text-3);
+  flex-shrink: 0;
+  width: 56px;
+}
+
+.event-topic {
+  flex-shrink: 0;
+  width: 130px;
+  white-space: nowrap;
+}
+
+.event-payload {
+  color: var(--text-2);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topic-match { color: var(--coral); }
+.topic-room { color: var(--primary); }
+.topic-ai { color: var(--teal); }
+.topic-bet { color: var(--amber); }
+.topic-user { color: var(--pink); }
+.topic-wallet { color: #5DCAA5; }
+.topic-compliance { color: var(--red); }
+
+/* ========== AI STATE MACHINE ========== */
+.fsm-container {
+  padding: 14px;
+  background: var(--bg-2);
+}
+
+.fsm-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  font-size: 10px;
+}
+
+.fsm-node {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 5px;
+  text-align: center;
+  transition: all 0.3s;
+  font-weight: 500;
+  color: var(--text-2);
+  position: relative;
+}
+
+.fsm-node.done {
+  background: var(--teal-bg);
+  color: var(--teal);
+  border-color: var(--teal-dim);
+}
+
+.fsm-node.active {
+  background: var(--primary-bg);
+  color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-bg);
+  animation: nodeActive 0.6s ease-in-out infinite;
+}
+
+@keyframes nodeActive {
+  0%, 100% { box-shadow: 0 0 0 2px var(--primary-bg); }
+  50% { box-shadow: 0 0 0 5px rgba(127, 119, 221, 0.05); }
+}
+
+.fsm-current-trace {
+  background: var(--bg-1);
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
+  font-size: 10px;
+  color: var(--text-2);
+  font-family: ui-monospace, "SF Mono", monospace;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+/* ========== FLYWHEEL ========== */
+.flywheel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 14px;
+}
+
+.fw-card {
+  background: var(--bg-2);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.fw-label {
+  font-size: 9px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+.fw-value {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.fw-value.up { color: var(--teal); }
+.fw-value.primary { color: var(--primary); }
+.fw-delta {
+  font-size: 10px;
+  color: var(--teal);
+  margin-top: 2px;
+}
+
+.fw-spark {
+  margin-top: 4px;
+  height: 24px;
+}
+
+/* ========== KOL PERSONA ========== */
+.kol-persona {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kol-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.kol-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.kol-avatar::after {
+  content: "AI";
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--teal) 100%);
+  color: var(--bg-0);
+  font-size: 8px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 700;
+}
+
+.kol-info { flex: 1; min-width: 0; }
+.kol-name { font-size: 12px; font-weight: 500; }
+.kol-meta { font-size: 10px; color: var(--text-2); }
+.kol-pick { 
+  font-size: 11px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--bg-3);
+  border-radius: 4px;
+  border-left: 2px solid var(--primary);
+}
+
+.kol-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--text-2);
+  margin-top: 4px;
+}
+
+/* ========== ARCHITECTURE STRIP ========== */
+.arch-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  padding: 14px;
+  font-size: 9px;
+}
+
+.arch-svc {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 4px;
+  text-align: center;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.arch-svc.active {
+  border-color: var(--teal);
+  background: var(--teal-bg);
+  color: var(--teal);
+}
+
+.arch-svc-name { font-weight: 500; font-size: 10px; }
+.arch-svc-stack { color: var(--text-3); margin-top: 2px; font-size: 8px; }
+
+.arch-svc-pulse {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.3s;
+}
+
+.arch-svc.active .arch-svc-pulse {
+  background: var(--teal);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* ========== TIMELINE STRIP ========== */
+.timeline-strip {
+  background: var(--bg-2);
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--text-2);
+}
+
+.timeline-progress {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-3);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.timeline-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--teal) 100%);
+  width: 0%;
+  transition: width 0.5s linear;
+}
+
+.timeline-marker {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 8px;
+  background: var(--text-3);
+  opacity: 0.5;
+}
+
+.scenario-tag {
+  background: var(--primary-bg);
+  color: var(--primary);
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.scenario-tag.teal { background: var(--teal-bg); color: var(--teal); }
+.scenario-tag.amber { background: var(--amber-bg); color: var(--amber); }
+.scenario-tag.coral { background: var(--coral-bg); color: var(--coral); }
+
+/* ========== INFO BAR ========== */
+.intro-bar {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 14px;
+  font-size: 12px;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 1572px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.intro-bar strong { color: var(--text-1); font-weight: 600; }
+
+.intro-icon {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--teal) 100%);
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--bg-0);
+  font-weight: 700;
+}
+
+footer {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-3);
+  font-size: 11px;
+  border-top: 1px solid var(--border);
+  margin-top: 20px;
+}
+
+footer a { color: var(--primary); text-decoration: none; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-logo">A</div>
+    <div class="brand-text">
+      <div class="brand-name">Project Aurora</div>
+      <div class="brand-subtitle">DAZN NEXT-GEN SOCIAL × AI SPORTS</div>
+    </div>
+  </div>
+  <div class="match-info">
+    <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+    <span style="color: var(--text-2)">J1 League · 浦和レッズ vs FC東京</span>
+    <span style="color: var(--text-3)" id="header-time">82:00</span>
+  </div>
+  <div class="kpi-bar">
+    <div class="kpi"><span class="kpi-label">DAU</span><span class="kpi-value up" id="kpi-dau">1.41M</span></div>
+    <div class="kpi"><span class="kpi-label">K-FACTOR</span><span class="kpi-value" id="kpi-kfactor">0.028</span></div>
+    <div class="kpi"><span class="kpi-label">LIVE ROOMS</span><span class="kpi-value" id="kpi-rooms">12,847</span></div>
+    <div class="kpi"><span class="kpi-label">EVENTS/SEC</span><span class="kpi-value warn" id="kpi-events">47.2K</span></div>
+  </div>
+</header>
+
+<div class="intro-bar">
+  <span class="intro-icon">▶</span>
+  <span>这是 <strong>Aurora 平台运行时演示</strong> — 一场 J1 联赛进行中,浦和主队压制对手。下方左栏是模拟视频,中间是 5 人 Watch Party 房间(含 1 个 AI 副驾),右栏是 Aurora 系统层的实时事件流、AI Agent 状态机、数据飞轮指标。<strong>这个 demo 自动循环</strong>,完整展示一次 AI×Social 协作 + 群体投注 + 结算飞轮闭环(约 60 秒一轮)。</span>
+</div>
+
+<main>
+  <!-- ========== LEFT COLUMN: MATCH ========== -->
+  <div class="col" id="col-match">
+    <div class="panel">
+      <div class="pitch-container">
+        <canvas id="pitch" width="640" height="360"></canvas>
+        <div class="score-overlay">
+          <div class="team-mini"><span class="team-dot red"></span><span>浦和</span></div>
+          <div class="score" id="score">2 - 1</div>
+          <div class="team-mini"><span class="team-dot blue"></span><span>FC東京</span></div>
+        </div>
+        <div class="match-time" id="pitch-time">82:00</div>
+        <div class="match-stats-bar" id="pitch-stats">控球 62%  ·  xG 1.84</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">实时比赛数据 <span class="panel-tag teal">SPORTRADAR FEED</span></div>
+      </div>
+      <div class="panel-body">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">射门</div>
+            <div class="stat-value" id="stat-shots">14</div>
+            <div class="stat-trend up" id="stat-shots-trend">↑ 主队压制</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">角球</div>
+            <div class="stat-value" id="stat-corners">8</div>
+            <div class="stat-trend up">↑ +1</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">控球率</div>
+            <div class="stat-value" id="stat-poss">62%</div>
+            <div class="stat-trend up">↑ 上升</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">KOL Persona 实时推荐 <span class="panel-tag amber">5 KOL ONLINE</span></div>
+      </div>
+      <div class="panel-body no-pad">
+        <div class="kol-persona">
+          <div class="kol-card">
+            <div class="kol-avatar" style="background: #E24B4A; color: white;">SK</div>
+            <div class="kol-info">
+              <div class="kol-name">坂本健太 <span class="ai-tag">AI PERSONA</span></div>
+              <div class="kol-meta">关注 18,402  ·  J1 命中率 58%</div>
+              <div class="kol-pick">浦和下半场加时 0-15min 进球 @ 2.20<br><span style="font-size:10px;color:var(--text-3)">"主队节奏明显,这种场面经验告诉我..."</span></div>
+              <div class="kol-stats"><span>跟单 247 人</span><span style="color:var(--teal)">●</span><span>本场 +¥18,400</span></div>
+            </div>
+          </div>
+          <div class="kol-card">
+            <div class="kol-avatar" style="background: #378ADD; color: white;">YM</div>
+            <div class="kol-info">
+              <div class="kol-name">山田美穂 <span class="ai-tag">AI PERSONA</span></div>
+              <div class="kol-meta">关注 9,217  ·  专攻 Asian Handicap</div>
+              <div class="kol-pick">浦和 -1 让球 @ 1.95 (信心 ★★★★)<br><span style="font-size:10px;color:var(--text-3)">"这种数据形态非常熟悉..."</span></div>
+              <div class="kol-stats"><span>跟单 89 人</span><span style="color:var(--teal)">●</span><span>本场 +¥6,720</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== MIDDLE COLUMN: WATCH PARTY ROOM ========== -->
+  <div class="col" id="col-room">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          Watch Party · #saitama-stand
+          <span class="panel-tag">5 MEMBERS</span>
+        </div>
+        <div style="font-size: 10px; color: var(--text-3);">
+          <span style="color:var(--teal)">●</span> Sync 47ms
+        </div>
+      </div>
+
+      <div class="room-members" id="room-members">
+        <div class="member host" data-name="taro">
+          <div class="member-avatar" style="background: #EF9F27; color: var(--bg-0)">T</div>
+          <div class="member-name">太郎(房主)</div>
+        </div>
+        <div class="member" data-name="yuki">
+          <div class="member-avatar" style="background: #ED93B1; color: var(--bg-0)">Y</div>
+          <div class="member-name">由紀</div>
+        </div>
+        <div class="member" data-name="ken">
+          <div class="member-avatar" style="background: #5DCAA5; color: var(--bg-0)">K</div>
+          <div class="member-name">健</div>
+        </div>
+        <div class="member" data-name="emi">
+          <div class="member-avatar" style="background: #F0997B; color: var(--bg-0)">E</div>
+          <div class="member-name">恵美</div>
+        </div>
+        <div class="member ai" data-name="aurora">
+          <div class="member-avatar">✦</div>
+          <div class="member-name">Aurora AI</div>
+        </div>
+      </div>
+
+      <div class="chat-area" id="chat-area"></div>
+
+      <div class="group-pool" id="group-pool">
+        <div class="pool-empty">尚无活跃 Pool · AI 会在合适时机提议</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== RIGHT COLUMN: SYSTEM ========== -->
+  <div class="col" id="col-system">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Aurora Event Mesh <span class="panel-tag teal">KAFKA + NATS</span></div>
+        <div style="font-size: 10px; color: var(--text-3);" id="event-count">0 events</div>
+      </div>
+      <div class="event-stream" id="event-stream"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">ai-agent-svc · LangGraph 状态机 <span class="panel-tag amber">P95 1.34s</span></div>
+        <div style="font-size: 10px; color: var(--text-3);" id="fsm-status">idle</div>
+      </div>
+      <div class="fsm-container">
+        <div class="fsm-grid" id="fsm-grid">
+          <div class="fsm-node" data-node="ingest">ingest_context</div>
+          <div class="fsm-node" data-node="rg">rg_check</div>
+          <div class="fsm-node" data-node="user_pat">user_pattern</div>
+          <div class="fsm-node" data-node="stats">player_stats</div>
+          <div class="fsm-node" data-node="odds">current_odds</div>
+          <div class="fsm-node" data-node="alt_odds">alt_odds</div>
+          <div class="fsm-node" data-node="room_sent">room_sentiment</div>
+          <div class="fsm-node" data-node="persona">persona_card</div>
+          <div class="fsm-node" data-node="llm">llm_reason</div>
+          <div class="fsm-node" data-node="rank">rank_dedupe</div>
+          <div class="fsm-node" data-node="quality">quality_gate</div>
+          <div class="fsm-node" data-node="audit">audit_log</div>
+        </div>
+      </div>
+      <div class="fsm-current-trace" id="fsm-trace">等待触发...</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">数据飞轮指标 <span class="panel-tag">REAL-TIME</span></div>
+        <div style="font-size: 10px; color: var(--text-3);">10K MC paths</div>
+      </div>
+      <div class="flywheel-grid">
+        <div class="fw-card">
+          <div class="fw-label">本场房间投注总额</div>
+          <div class="fw-value primary" id="fw-pool-total">¥0</div>
+          <div class="fw-delta" id="fw-pool-delta">飞轮启动中</div>
+          <svg class="fw-spark" id="spark-pool" viewBox="0 0 200 24" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="fw-card">
+          <div class="fw-label">AI 推荐采纳率</div>
+          <div class="fw-value up" id="fw-accept">68.2%</div>
+          <div class="fw-delta">↑ 3.4pp · 14天</div>
+          <svg class="fw-spark" id="spark-accept" viewBox="0 0 200 24" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="fw-card">
+          <div class="fw-label">Internal Odds 偏差</div>
+          <div class="fw-value" id="fw-edge">+4.2%</div>
+          <div class="fw-delta">vs Sportradar 市场赔率</div>
+          <svg class="fw-spark" id="spark-edge" viewBox="0 0 200 24" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="fw-card">
+          <div class="fw-label">LTV / Paying User</div>
+          <div class="fw-value primary" id="fw-ltv">$149</div>
+          <div class="fw-delta">↑ 12% MoM · M30 cohort</div>
+          <svg class="fw-spark" id="spark-ltv" viewBox="0 0 200 24" preserveAspectRatio="none"></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">12 Domain Services · 实时活跃 <span class="panel-tag teal">HEALTHY</span></div>
+      </div>
+      <div class="arch-strip" id="arch-strip">
+        <div class="arch-svc" data-svc="identity-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">identity</div><div class="arch-svc-stack">Go·Neo4j</div></div>
+        <div class="arch-svc" data-svc="catalog-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">catalog</div><div class="arch-svc-stack">Go·PG</div></div>
+        <div class="arch-svc" data-svc="room-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">room</div><div class="arch-svc-stack">Go·Scylla</div></div>
+        <div class="arch-svc" data-svc="sync-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">sync</div><div class="arch-svc-stack">LiveKit</div></div>
+        <div class="arch-svc" data-svc="wallet-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">wallet</div><div class="arch-svc-stack">Go·OSS+PAM</div></div>
+        <div class="arch-svc" data-svc="bet-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">bet</div><div class="arch-svc-stack">Go·Pool</div></div>
+        <div class="arch-svc" data-svc="ai-agent-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">ai-agent</div><div class="arch-svc-stack">Py·LangGraph</div></div>
+        <div class="arch-svc" data-svc="recommendation-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">recom</div><div class="arch-svc-stack">Py·Two-Tower</div></div>
+        <div class="arch-svc" data-svc="sportsbook-adapter-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">sb-adapter</div><div class="arch-svc-stack">Pragmatic</div></div>
+        <div class="arch-svc" data-svc="content-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">content</div><div class="arch-svc-stack">Go·KOL</div></div>
+        <div class="arch-svc" data-svc="compliance-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">compliance</div><div class="arch-svc-stack">Go·OPA</div></div>
+        <div class="arch-svc" data-svc="analytics-svc"><div class="arch-svc-pulse"></div><div class="arch-svc-name">analytics</div><div class="arch-svc-stack">ClickHouse</div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="timeline-strip">
+  <span class="scenario-tag" id="scenario">PHASE: IDLE</span>
+  <div class="timeline-progress">
+    <div class="timeline-fill" id="timeline-fill"></div>
+  </div>
+  <span id="timeline-label" style="white-space: nowrap;">观察 AI x Social 飞轮闭环</span>
+</div>
+
+<footer>
+  Project Aurora 系统级演示 · 完整设计见白皮书 3 + 5 个工程 PR<br>
+  Demo 自动循环播放 · 60 秒完成一次完整数据飞轮闭环
+</footer>
+
+<script>
+// ============================================================
+// AURORA LIVE DEMO — Self-running scripted simulation
+// ============================================================
+
+// ---------- DOM helpers ----------
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
+
+// ---------- State ----------
+let matchTime = 82 * 60; // seconds
+let demoTime = 0; // seconds since demo start (for 60s loop)
+let eventCount = 0;
+let totalDAU = 1408688;
+let kFactor = 0.028;
+let liveRooms = 12847;
+let eventsPerSec = 47200;
+let acceptanceRate = 68.2;
+let internalEdge = 4.2;
+let ltv = 149;
+let poolTotal = 0;
+let activeFsmNode = null;
+const sparkData = { pool: [], accept: [], edge: [], ltv: [] };
+
+// ---------- Score state ----------
+let homeScore = 2;
+let awayScore = 1;
+
+// Statistics
+let shots = 14, corners = 8, possession = 62;
+
+// ---------- Pitch canvas animation ----------
+const canvas = $('pitch');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// 22 players (positions on a 100 x 60 normalized field)
+const homePlayers = [
+  {x: 20, y: 30}, // GK
+  {x: 30, y: 12}, {x: 30, y: 24}, {x: 30, y: 36}, {x: 30, y: 48}, // DF
+  {x: 50, y: 20}, {x: 50, y: 30}, {x: 50, y: 40}, // MF
+  {x: 70, y: 18}, {x: 75, y: 30}, {x: 70, y: 42}, // FW
+];
+const awayPlayers = [
+  {x: 80, y: 30}, // GK (mirrored)
+  {x: 70, y: 12}, {x: 70, y: 24}, {x: 70, y: 36}, {x: 70, y: 48}, // DF
+  {x: 50, y: 22}, {x: 50, y: 30}, {x: 50, y: 38}, // MF
+  {x: 35, y: 20}, {x: 30, y: 30}, {x: 35, y: 42}, // FW (pressing higher because home is dominating)
+];
+const ball = {x: 65, y: 30, vx: 0, vy: 0};
+
+// Event-driven ball movement script (matches demo timeline)
+let ballScript = [];
+let ballScriptIdx = 0;
+
+function setBallTarget(targetX, targetY, speed = 0.6) {
+  const dx = targetX - ball.x;
+  const dy = targetY - ball.y;
+  const d = Math.sqrt(dx*dx + dy*dy);
+  ball.vx = (dx / d) * speed;
+  ball.vy = (dy / d) * speed;
+}
+
+function drawPitch() {
+  // Field
+  ctx.fillStyle = '#2d5a3d';
+  ctx.fillRect(0, 0, W, H);
+  
+  // Stripes
+  for (let i = 0; i < 8; i++) {
+    if (i % 2 === 0) {
+      ctx.fillStyle = '#326a47';
+      ctx.fillRect(i * W / 8, 0, W / 8, H);
+    }
+  }
+  
+  // Field lines
+  ctx.strokeStyle = '#4a8a60';
+  ctx.lineWidth = 1.5;
+  
+  // Outer
+  ctx.strokeRect(20, 20, W - 40, H - 40);
+  
+  // Center line
+  ctx.beginPath();
+  ctx.moveTo(W / 2, 20);
+  ctx.lineTo(W / 2, H - 20);
+  ctx.stroke();
+  
+  // Center circle
+  ctx.beginPath();
+  ctx.arc(W / 2, H / 2, 36, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  // Penalty boxes
+  ctx.strokeRect(20, H/2 - 60, 60, 120);
+  ctx.strokeRect(W - 80, H/2 - 60, 60, 120);
+  
+  // Goal boxes
+  ctx.strokeRect(20, H/2 - 30, 24, 60);
+  ctx.strokeRect(W - 44, H/2 - 30, 24, 60);
+  
+  // Goals
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillRect(14, H/2 - 16, 6, 32);
+  ctx.fillRect(W - 20, H/2 - 16, 6, 32);
+}
+
+function drawPlayer(x, y, color, num) {
+  const px = (x / 100) * (W - 40) + 20;
+  const py = (y / 60) * (H - 40) + 20;
+  
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(px + 1, py + 4, 6, 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // body
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(px, py, 5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawBall() {
+  const px = (ball.x / 100) * (W - 40) + 20;
+  const py = (ball.y / 60) * (H - 40) + 20;
+  
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.ellipse(px + 1, py + 3, 3, 1.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // ball
+  ctx.fillStyle = 'white';
+  ctx.beginPath();
+  ctx.arc(px, py, 3, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+}
+
+function updateBall() {
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+  
+  // Bounce
+  if (ball.x < 5 || ball.x > 95) ball.vx *= -0.7;
+  if (ball.y < 5 || ball.y > 55) ball.vy *= -0.7;
+  
+  // Friction
+  ball.vx *= 0.985;
+  ball.vy *= 0.985;
+  
+  // Random small jitter for "live" feel
+  if (Math.abs(ball.vx) < 0.02 && Math.abs(ball.vy) < 0.02) {
+    ball.vx += (Math.random() - 0.5) * 0.2;
+    ball.vy += (Math.random() - 0.5) * 0.15;
+  }
+}
+
+function updatePlayers() {
+  // Subtle "follow ball" with random jitter
+  homePlayers.forEach((p, i) => {
+    if (i === 0) return; // GK stays
+    const targetDx = (ball.x - p.x) * 0.005;
+    const targetDy = (ball.y - p.y) * 0.005;
+    p.x += targetDx + (Math.random() - 0.5) * 0.15;
+    p.y += targetDy + (Math.random() - 0.5) * 0.12;
+    p.x = Math.max(8, Math.min(85, p.x));
+    p.y = Math.max(5, Math.min(55, p.y));
+  });
+  awayPlayers.forEach((p, i) => {
+    if (i === 0) return;
+    const targetDx = (ball.x - p.x) * 0.004;
+    const targetDy = (ball.y - p.y) * 0.004;
+    p.x += targetDx + (Math.random() - 0.5) * 0.12;
+    p.y += targetDy + (Math.random() - 0.5) * 0.1;
+    p.x = Math.max(15, Math.min(92, p.x));
+    p.y = Math.max(5, Math.min(55, p.y));
+  });
+}
+
+function renderPitch() {
+  drawPitch();
+  homePlayers.forEach(p => drawPlayer(p.x, p.y, '#E24B4A', 0));
+  awayPlayers.forEach(p => drawPlayer(p.x, p.y, '#378ADD', 0));
+  drawBall();
+}
+
+// ---------- Event stream ----------
+function pushEvent(topic, payload, topicClass = 'topic-room') {
+  eventCount++;
+  const stream = $('event-stream');
+  const row = document.createElement('div');
+  row.className = 'event-row';
+  
+  const t = formatMatchTime(matchTime);
+  row.innerHTML = `
+    <span class="event-time">${t}</span>
+    <span class="event-topic ${topicClass}">${topic}</span>
+    <span class="event-payload">${payload}</span>
+  `;
+  stream.insertBefore(row, stream.firstChild);
+  
+  // Keep last 30
+  while (stream.children.length > 30) stream.removeChild(stream.lastChild);
+  
+  $('event-count').textContent = `${eventCount.toLocaleString()} events`;
+  
+  // Highlight relevant service
+  highlightService(topic);
+}
+
+function highlightService(topic) {
+  let svc = null;
+  if (topic.startsWith('ai.')) svc = 'ai-agent-svc';
+  else if (topic.startsWith('room.')) svc = 'room-svc';
+  else if (topic.startsWith('bet.')) svc = 'bet-svc';
+  else if (topic.startsWith('wallet.')) svc = 'wallet-svc';
+  else if (topic.startsWith('match.')) svc = 'catalog-svc';
+  else if (topic.startsWith('user.')) svc = 'identity-svc';
+  else if (topic.startsWith('compliance.')) svc = 'compliance-svc';
+  else if (topic.startsWith('content.')) svc = 'content-svc';
+  
+  if (svc) {
+    const el = document.querySelector(`[data-svc="${svc}"]`);
+    if (el) {
+      el.classList.add('active');
+      clearTimeout(el._timer);
+      el._timer = setTimeout(() => el.classList.remove('active'), 1500);
+    }
+  }
+}
+
+// ---------- Chat ----------
+const memberConfig = {
+  taro:   { name: '太郎',     color: '#EF9F27', textColor: 'var(--bg-0)', initial: 'T' },
+  yuki:   { name: '由紀',     color: '#ED93B1', textColor: 'var(--bg-0)', initial: 'Y' },
+  ken:    { name: '健',       color: '#5DCAA5', textColor: 'var(--bg-0)', initial: 'K' },
+  emi:    { name: '恵美',     color: '#F0997B', textColor: 'var(--bg-0)', initial: 'E' },
+  aurora: { name: 'Aurora',  color: 'gradient', textColor: 'var(--bg-0)', initial: '✦', isAI: true },
+};
+
+function pushMsg(memberId, text, isProposal = false, proposalData = null) {
+  const cfg = memberConfig[memberId];
+  const chat = $('chat-area');
+  const msg = document.createElement('div');
+  msg.className = `msg ${cfg.isAI ? 'ai' : ''}`;
+  
+  const avatarStyle = cfg.color === 'gradient' 
+    ? 'background: linear-gradient(135deg, var(--primary) 0%, var(--teal) 100%);'
+    : `background: ${cfg.color}`;
+  
+  let proposalHTML = '';
+  if (isProposal && proposalData) {
+    proposalHTML = `
+      <div class="ai-proposal">
+        <div class="ai-proposal-title">⚡ Group Pool 提议</div>
+        <div class="ai-proposal-detail"><strong>${proposalData.question}</strong></div>
+        <div class="ai-proposal-detail" style="font-size:11px;color:var(--text-2)">建议金额范围 ¥500-2000  ·  AI 信心 ${proposalData.confidence}</div>
+        <div class="ai-proposal-meta">
+          <span>📊 ${proposalData.dataSources}</span>
+          <span>⏱ 锁定 90s 后</span>
+        </div>
+        <div class="ai-proposal-actions">
+          <button class="btn primary">发起 Pool</button>
+          <button class="btn">跳过</button>
+        </div>
+      </div>
+    `;
+  }
+  
+  msg.innerHTML = `
+    <div class="msg-avatar" style="${avatarStyle};color:${cfg.textColor}">${cfg.initial}</div>
+    <div class="msg-body">
+      <div class="msg-meta">
+        <span class="msg-name ${cfg.isAI ? 'ai' : ''}">${cfg.name}</span>
+        ${cfg.isAI ? '<span class="ai-tag">AI</span>' : ''}
+        <span class="msg-time">${formatMatchTime(matchTime)}</span>
+      </div>
+      <div class="msg-text">${text}</div>
+      ${proposalHTML}
+    </div>
+  `;
+  
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+  
+  // mark member as speaking briefly
+  const memberEl = document.querySelector(`[data-name="${memberId}"]`);
+  if (memberEl) {
+    memberEl.classList.add('speaking');
+    clearTimeout(memberEl._timer);
+    memberEl._timer = setTimeout(() => memberEl.classList.remove('speaking'), 2500);
+  }
+}
+
+// ---------- FSM ----------
+function activateFsmNode(nodeId, traceText) {
+  const allNodes = $$('.fsm-node');
+  if (activeFsmNode) {
+    document.querySelector(`[data-node="${activeFsmNode}"]`)?.classList.remove('active');
+    document.querySelector(`[data-node="${activeFsmNode}"]`)?.classList.add('done');
+  }
+  const el = document.querySelector(`[data-node="${nodeId}"]`);
+  if (el) el.classList.add('active');
+  activeFsmNode = nodeId;
+  $('fsm-trace').textContent = `▸ ${traceText}`;
+  $('fsm-status').textContent = `running · ${nodeId}`;
+}
+
+function resetFsm() {
+  $$('.fsm-node').forEach(n => {
+    n.classList.remove('active', 'done');
+  });
+  activeFsmNode = null;
+  $('fsm-trace').textContent = '等待触发...';
+  $('fsm-status').textContent = 'idle';
+}
+
+function completeFsm() {
+  if (activeFsmNode) {
+    document.querySelector(`[data-node="${activeFsmNode}"]`)?.classList.remove('active');
+    document.querySelector(`[data-node="${activeFsmNode}"]`)?.classList.add('done');
+  }
+  activeFsmNode = null;
+  $('fsm-trace').textContent = '✓ 完成 · 结果已发布到 ai.recommendation.generated';
+  $('fsm-status').textContent = 'completed · 1.34s';
+}
+
+// ---------- Group Pool ----------
+function showPool(question, optA, optB) {
+  $('group-pool').innerHTML = `
+    <div class="pool-active">
+      <div class="pool-question">⚡ ${question}</div>
+      <div class="pool-options">
+        <div class="pool-option" id="pool-a">
+          <div class="pool-option-label">
+            <span class="pool-option-name">${optA.name}</span>
+            <span class="pool-option-stake">@${optA.odds}</span>
+          </div>
+          <div class="pool-bar"><div class="pool-bar-fill" id="pool-a-fill" style="width: 0%"></div></div>
+          <div class="pool-meta"><span id="pool-a-stake">¥0</span><span id="pool-a-bettors">0 人</span></div>
+        </div>
+        <div class="pool-option" id="pool-b">
+          <div class="pool-option-label">
+            <span class="pool-option-name">${optB.name}</span>
+            <span class="pool-option-stake">@${optB.odds}</span>
+          </div>
+          <div class="pool-bar"><div class="pool-bar-fill" id="pool-b-fill" style="width: 0%"></div></div>
+          <div class="pool-meta"><span id="pool-b-stake">¥0</span><span id="pool-b-bettors">0 人</span></div>
+        </div>
+      </div>
+      <div class="pool-meta" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);">
+        <span>总池 <strong id="pool-total">¥0</strong></span>
+        <span id="pool-status" style="color:var(--teal)">⏳ 锁定中</span>
+      </div>
+    </div>
+  `;
+}
+
+function updatePoolStakes(aStake, aBettors, bStake, bBettors) {
+  const total = aStake + bStake;
+  const aPct = total > 0 ? (aStake / total) * 100 : 0;
+  const bPct = total > 0 ? (bStake / total) * 100 : 0;
+  
+  if ($('pool-a-fill')) {
+    $('pool-a-fill').style.width = aPct + '%';
+    $('pool-b-fill').style.width = bPct + '%';
+    $('pool-a-stake').textContent = '¥' + aStake.toLocaleString();
+    $('pool-b-stake').textContent = '¥' + bStake.toLocaleString();
+    $('pool-a-bettors').textContent = aBettors + ' 人';
+    $('pool-b-bettors').textContent = bBettors + ' 人';
+    $('pool-total').textContent = '¥' + total.toLocaleString();
+  }
+  
+  poolTotal = total;
+  $('fw-pool-total').textContent = '¥' + total.toLocaleString();
+  pushSpark('pool', total);
+}
+
+function settlePool(winningOption) {
+  const a = $('pool-a'), b = $('pool-b');
+  if (winningOption === 'A') {
+    a.classList.add('win');
+    b.classList.add('lose');
+  } else {
+    b.classList.add('win');
+    a.classList.add('lose');
+  }
+  $('pool-status').innerHTML = `<span style="color:var(--teal)">✓ 结算完成 · 选项 ${winningOption} 胜出</span>`;
+}
+
+function clearPool() {
+  $('group-pool').innerHTML = '<div class="pool-empty">尚无活跃 Pool · AI 会在合适时机提议</div>';
+  poolTotal = 0;
+}
+
+// ---------- KPI updater ----------
+function tickKPIs() {
+  // small random walk for live feel
+  totalDAU += Math.floor(Math.random() * 50);
+  liveRooms += Math.floor(Math.random() * 10) - 4;
+  eventsPerSec = 47200 + Math.floor(Math.random() * 3000) - 1500;
+  
+  $('kpi-dau').textContent = (totalDAU / 1e6).toFixed(2) + 'M';
+  $('kpi-rooms').textContent = liveRooms.toLocaleString();
+  $('kpi-events').textContent = (eventsPerSec / 1000).toFixed(1) + 'K';
+}
+
+// ---------- Sparkline ----------
+function pushSpark(key, value) {
+  sparkData[key].push(value);
+  if (sparkData[key].length > 30) sparkData[key].shift();
+  renderSpark(key);
+}
+
+function renderSpark(key) {
+  const data = sparkData[key];
+  if (data.length < 2) return;
+  const svg = $('spark-' + key);
+  if (!svg) return;
+  
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * 200;
+    const y = 24 - ((v - min) / range) * 22 - 1;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  
+  svg.innerHTML = `
+    <polyline points="${points}" fill="none" stroke="${
+      key === 'pool' ? 'var(--primary)' : 
+      key === 'accept' ? 'var(--teal)' :
+      key === 'edge' ? 'var(--amber)' :
+      'var(--primary)'
+    }" stroke-width="1.5" />
+  `;
+}
+
+// ---------- Time formatting ----------
+function formatMatchTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+}
+
+// ---------- DEMO TIMELINE ----------
+// Each step has a time (in demo seconds) and an action
+const timeline = [
+  // ===== Phase 1: Match unfolding =====
+  { t: 0, scenario: 'IDLE', label: '比赛进行中 · 浦和压制', tag: 'primary',
+    action: () => {
+      pushEvent('match.event.shot', '浦和 · #10 · 距离 18m · xG 0.12', 'topic-match');
+      shots++;
+      $('stat-shots').textContent = shots;
+    }
+  },
+  { t: 2, action: () => {
+    pushMsg('taro', 'いやぁ完全に押してるね、浦和。');
+  }},
+  { t: 5, action: () => {
+    pushEvent('user.signal.sentiment', 'room=saitama-stand · sentiment=excited', 'topic-user');
+    pushMsg('yuki', '次の角球くる気がする。さっきから危ない場面多すぎ');
+  }},
+  { t: 7, action: () => {
+    setBallTarget(85, 35, 1.2);
+    pushEvent('match.event.attack', 'team=home · zone=final_third · intensity=0.78', 'topic-match');
+  }},
+
+  // ===== Phase 2: Corner kick triggers AI =====
+  { t: 10, scenario: 'TRIGGER', label: 'AI 检测关键时刻', tag: 'amber',
+    action: () => {
+      corners++;
+      $('stat-corners').textContent = corners;
+      pushEvent('match.event.corner', '浦和获得角球 · 84min · 主队进攻强度 0.82', 'topic-match');
+      pushMsg('ken', 'これチャンスじゃない?');
+    }
+  },
+  { t: 12, action: () => {
+    pushEvent('ai.trigger.received', 'mode=room · room_id=saitama · trigger=MATCH_EVENT', 'topic-ai');
+    activateFsmNode('ingest', 'mode=room · room_id=saitama-stand · members=4 · last_event=corner');
+  }},
+  { t: 13, action: () => activateFsmNode('rg', '检查所有 4 个用户的 RG 状态 · all PASSED · score 0.18') },
+  { t: 14, action: () => {
+    activateFsmNode('user_pat', '检索用户偏好: taro 偏 set-piece markets · yuki 偏 anytime scorer');
+    pushEvent('user.signal.preference', 'taro · pref=set-piece markets · weight=0.71', 'topic-user');
+  }},
+  { t: 14.5, action: () => activateFsmNode('stats', '球员近 5 场 corner-to-goal: 浦和 38% · 主场 xG/角球 0.14') },
+  { t: 15, action: () => {
+    activateFsmNode('odds', 'Sportradar/Pragmatic: 0-15min next goal @ 2.20 · over 2.5 @ 1.85');
+    pushEvent('content.odds.fetched', 'market=next_goal_15m · home@2.20 · away@4.40', 'topic-room');
+  }},
+  { t: 15.5, action: () => activateFsmNode('alt_odds', '内部 Pool 1247 个房间最近平均: 主队 next goal 隐含 @ 2.05 · -7% vs Pragmatic') },
+  { t: 16, action: () => activateFsmNode('room_sent', '聊天分析: ken/yuki 期待进球 · taro 房主活跃 · 时机最佳') },
+  { t: 17, action: () => {
+    activateFsmNode('llm', 'Claude Sonnet 4.6 · streaming · 工具调用 5 次 · 推理 730ms');
+    pushEvent('ai.llm.invoked', 'model=claude-4-6 · tokens=2.1k · cost=$0.021', 'topic-ai');
+  }},
+  { t: 18.5, action: () => activateFsmNode('rank', '生成 3 个候选: corner→goal · over 2.5 · home -1 · 选 EV 最高') },
+  { t: 19, action: () => activateFsmNode('quality', 'JSON schema 校验通过 · 数据来源溯源 5/5 · 信心 0.74') },
+  { t: 19.5, action: () => {
+    activateFsmNode('audit', '写入 Kafka audit topic · S3 7 年归档 · trace_id stored');
+    pushEvent('ai.recommendation.generated', 'next_goal_15m · home @ 2.20 · EV +12.3%', 'topic-ai');
+  }},
+  { t: 20, action: () => completeFsm() },
+
+  // ===== Phase 3: AI proposes Group Pool =====
+  { t: 21, scenario: 'AI PROPOSAL', label: 'AI 在房间发起群体投注提议', tag: 'teal',
+    action: () => {
+      pushMsg('aurora', '注意到刚才角球+主队xG 1.84,我的模型预测下个 15min 进球概率 47%。市场赔率 2.20,EV +12%。要不要开个 Pool?', true, {
+        question: '浦和 84-99min 内进球?',
+        confidence: '74%',
+        dataSources: '5 个数据源 · 实时'
+      });
+      pushEvent('ai.proposal.in_room', 'pool_question=next_goal_15m · home @2.20', 'topic-ai');
+    }
+  },
+  { t: 23, action: () => pushMsg('taro', '面白そう!乗った') },
+  { t: 24, action: () => pushMsg('emi', '私も。500円から') },
+  { t: 25, action: () => pushMsg('ken', 'いいよ、開いて') },
+  { t: 26, action: () => pushMsg('yuki', '私も賛成') },
+  
+  // ===== Phase 4: Pool created and stakes flow in =====
+  { t: 27, scenario: 'POOL ACTIVE', label: 'Group Pool 创建 · 资金流入', tag: 'primary',
+    action: () => {
+      showPool('浦和 84-99min 内进球?', 
+        { name: '是 (主队)', odds: '2.20' },
+        { name: '否', odds: '1.65' }
+      );
+      pushEvent('bet.pool.created', 'pool_id=p_8a3f · question=next_goal_15m · type=closed', 'topic-bet');
+      pushEvent('compliance.check.pool', 'all 4 users PASSED · max stake 5000', 'topic-compliance');
+    }
+  },
+  { t: 28, action: () => {
+    pushEvent('wallet.debit', 'taro · ¥1,000 · idempotency=k_3f...', 'topic-wallet');
+    updatePoolStakes(1000, 1, 0, 0);
+  }},
+  { t: 29, action: () => {
+    pushEvent('wallet.debit', 'emi · ¥500 · idempotency=k_8b...', 'topic-wallet');
+    updatePoolStakes(1000, 1, 500, 1);
+  }},
+  { t: 30, action: () => {
+    pushEvent('wallet.debit', 'ken · ¥2,000 · idempotency=k_1d...', 'topic-wallet');
+    updatePoolStakes(3000, 2, 500, 1);
+  }},
+  { t: 31, action: () => {
+    pushEvent('wallet.debit', 'yuki · ¥800 · OSS Wallet (虚拟币)', 'topic-wallet');
+    updatePoolStakes(3000, 2, 1300, 2);
+  }},
+  { t: 32, action: () => {
+    // Other rooms join via cross-room broadcast
+    pushEvent('room.broadcast', 'pool_id=p_8a3f · 12 个相邻房间订阅', 'topic-room');
+    updatePoolStakes(8400, 12, 4200, 9);
+  }},
+  { t: 34, action: () => {
+    updatePoolStakes(15800, 28, 6900, 14);
+    pushEvent('analytics.metric.alt_odds', 'pool implied: home 2.07 · vs market 2.20 · +6.3%', 'topic-room');
+  }},
+  { t: 36, action: () => {
+    updatePoolStakes(22400, 41, 9800, 22);
+    pushMsg('taro', 'すげえ伸びる!');
+    pushSpark('accept', 70.1);
+  }},
+
+  // ===== Phase 5: Goal! =====
+  { t: 40, scenario: 'GOAL', label: '⚽ 进球! · 飞轮加速', tag: 'coral',
+    action: () => {
+      // ball moves toward goal
+      ball.x = 92; ball.y = 30;
+      ball.vx = 0; ball.vy = 0;
+      homeScore++;
+      $('score').textContent = `${homeScore} - ${awayScore}`;
+      pushEvent('match.event.goal', '⚽ 浦和 · #10 · 86min · 来自角球', 'topic-match');
+    }
+  },
+  { t: 41, action: () => {
+    pushMsg('aurora', '⚽ GOAL!! 我的预测正确,Pool 即将结算...', false);
+    pushEvent('ai.outcome.confirmed', 'recommendation=hit · confidence retrospective=0.92', 'topic-ai');
+  }},
+  { t: 42, action: () => {
+    pushMsg('taro', 'やった!!勝ち確!');
+    pushMsg('emi', 'AI 神じゃん…');
+  }},
+  
+  // ===== Phase 6: Settlement & Flywheel =====
+  { t: 44, scenario: 'SETTLE', label: 'Pool 结算 · 数据飞轮转动', tag: 'teal',
+    action: () => {
+      settlePool('A');
+      pushEvent('bet.pool.settling', 'pool_id=p_8a3f · winner=home · payout calc...', 'topic-bet');
+    }
+  },
+  { t: 45, action: () => {
+    pushEvent('wallet.credit', 'taro · ¥2,000 (1k stake × 2.0 effective) · OSS', 'topic-wallet');
+    pushEvent('wallet.credit', 'emi · ¥1,000', 'topic-wallet');
+    pushEvent('wallet.credit', 'ken · ¥4,000', 'topic-wallet');
+  }},
+  { t: 46, action: () => {
+    pushEvent('analytics.flywheel.update', 'AI accept rate +0.3pp · LTV cohort +$0.7', 'topic-room');
+    acceptanceRate += 0.3;
+    ltv += 1;
+    $('fw-accept').textContent = acceptanceRate.toFixed(1) + '%';
+    $('fw-ltv').textContent = '$' + ltv;
+    pushSpark('accept', acceptanceRate);
+    pushSpark('ltv', ltv);
+  }},
+  { t: 47, action: () => {
+    internalEdge += 0.4;
+    $('fw-edge').textContent = '+' + internalEdge.toFixed(1) + '%';
+    pushSpark('edge', internalEdge);
+    pushEvent('analytics.alt_odds.recorded', '本场内部赔率序列 → S3 + Sportradar 数据资产', 'topic-room');
+  }},
+  { t: 49, action: () => {
+    pushMsg('aurora', '本场结算完成。Pool 总额 ¥32,200 · 28 个赢家 · 净 take 5%。这个房间已为飞轮贡献 4 条新训练数据。', false);
+  }},
+  { t: 51, action: () => {
+    pushEvent('content.persona.training', 'KOL 坂本健太 Persona +1 sample · 本场命中提升 1.2pp', 'topic-room');
+  }},
+
+  // ===== Reset for loop =====
+  { t: 56, scenario: 'LOOP', label: '即将开始下一轮闭环', tag: 'primary',
+    action: () => {
+      $('fw-pool-delta').textContent = '↑ 4 笔训练数据 · 本场';
+    }
+  },
+  { t: 60, action: () => {
+    // Reset for loop (keep cumulative metrics, reset transient)
+    clearPool();
+    resetFsm();
+    matchTime = 82 * 60; // reset to 82:00
+    homeScore = 2; awayScore = 1;
+    $('score').textContent = '2 - 1';
+    // Clear chat (keep last 4 msgs)
+    const chat = $('chat-area');
+    while (chat.children.length > 4) chat.removeChild(chat.firstChild);
+    pushEvent('demo.cycle.complete', '一轮完整 AI×Social 闭环 · 重置场景', 'topic-room');
+  }},
+];
+
+// ---------- Demo runner ----------
+let timelineIdx = 0;
+
+function tick() {
+  demoTime += 0.1;
+  matchTime = Math.floor(82 * 60 + demoTime);
+  
+  $('header-time').textContent = formatMatchTime(matchTime);
+  $('pitch-time').textContent = formatMatchTime(matchTime);
+  
+  // Execute scheduled timeline actions
+  while (timelineIdx < timeline.length && timeline[timelineIdx].t <= demoTime) {
+    const step = timeline[timelineIdx];
+    if (step.scenario) {
+      $('scenario').textContent = `PHASE: ${step.scenario}`;
+      $('scenario').className = `scenario-tag ${step.tag || ''}`;
+      $('timeline-label').textContent = step.label;
+    }
+    try { step.action(); } catch(e) { console.error(e); }
+    timelineIdx++;
+  }
+  
+  // Update timeline progress
+  $('timeline-fill').style.width = ((demoTime / 60) * 100) + '%';
+  
+  // Reset loop after 60 seconds
+  if (demoTime >= 60) {
+    demoTime = 0;
+    timelineIdx = 0;
+  }
+  
+  // Pitch animation (every tick)
+  updateBall();
+  if (Math.floor(demoTime * 10) % 2 === 0) updatePlayers();
+  renderPitch();
+}
+
+// ---------- Init ----------
+function init() {
+  // Initial pitch render
+  renderPitch();
+  
+  // Initial chat
+  pushMsg('taro', 'みんな見てる?後半14分から完全に圧してる。');
+  pushMsg('emi', '見てるよー。さっきの#10のミドル惜しかった。');
+  
+  // Initial sparkline data
+  for (let i = 0; i < 8; i++) {
+    sparkData.accept.push(60 + i * 1.1 + Math.random() * 2);
+    sparkData.edge.push(2 + i * 0.3 + Math.random() * 0.5);
+    sparkData.ltv.push(140 + i * 1 + Math.random() * 3);
+    sparkData.pool.push(0);
+  }
+  renderSpark('accept');
+  renderSpark('edge');
+  renderSpark('ltv');
+  
+  // Background events (bg pulse to make it feel alive)
+  setInterval(() => {
+    const pool = [
+      ['match.heartbeat', 'live · all systems nominal', 'topic-match'],
+      ['user.signal.viewing', `1.41M concurrent viewers · ${Math.floor(liveRooms)} rooms`, 'topic-user'],
+      ['analytics.metric.dau', `+${Math.floor(Math.random() * 200)} new in last 1m`, 'topic-room'],
+    ];
+    if (Math.random() < 0.4) {
+      const e = pool[Math.floor(Math.random() * pool.length)];
+      pushEvent(e[0], e[1], e[2]);
+    }
+  }, 3000);
+  
+  // Tick KPIs slowly
+  setInterval(tickKPIs, 1500);
+  
+  // Main loop
+  setInterval(tick, 100); // 10Hz
+}
+
+// Boot when DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+
+</body>
+</html>
